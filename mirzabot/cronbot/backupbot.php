@@ -12,25 +12,39 @@ $botlist = select("botsaz", "*", null, null, "fetchAll");
 if ($botlist) {
     foreach ($botlist as $bot) {
         $folderName = $bot['id_user'] . $bot['username'];
-        shell_exec("zip -r $destination/file.zip $sourcefir/vpnbot/$folderName/data $sourcefir/vpnbot/$folderName/product.json $sourcefir/vpnbot/$folderName/product_name.json");
+        $zipFile = sys_get_temp_dir() . '/mirzabot_agent_' . preg_replace('/[^A-Za-z0-9_-]/', '_', $folderName) . '_' . bin2hex(random_bytes(4)) . '.zip';
+        $paths = [
+            "$sourcefir/vpnbot/$folderName/data",
+            "$sourcefir/vpnbot/$folderName/product.json",
+            "$sourcefir/vpnbot/$folderName/product_name.json",
+        ];
+        $zipCommand = 'zip -r ' . escapeshellarg($zipFile);
+        foreach ($paths as $path) {
+            $zipCommand .= ' ' . escapeshellarg($path);
+        }
+        shell_exec($zipCommand);
         telegram('sendDocument', [
             'chat_id' => $setting['Channel_Report'],
             'message_thread_id' => $reportbackup,
-            'document' => new CURLFile('file.zip'),
+            'document' => new CURLFile($zipFile),
             'caption' => "@{$bot['username']} | {$bot['id_user']}",
         ]);
-        unlink('file.zip');
+        @unlink($zipFile);
     }
 }
 
 $backup_file_name = 'backup_' . date("Y-m-d") . '.sql';
 $zip_file_name = 'backup_' . date("Y-m-d") . '.zip';
 $dbhost = empty($dbhost) ? "localhost" : $dbhost;
-$command = "mysqldump -h $dbhost -u $usernamedb -p'$passworddb' --no-tablespaces --ssl-mode=DISABLED $dbname > $backup_file_name";
+$defaultsFile = tempnam(sys_get_temp_dir(), 'mirzabot_mysql_');
+file_put_contents($defaultsFile, "[client]\npassword=" . str_replace(["\\", "\n", "\r"], ["\\\\", "", ""], $passworddb) . "\n");
+@chmod($defaultsFile, 0600);
+$command = "mysqldump --defaults-extra-file=" . escapeshellarg($defaultsFile) . " -h " . escapeshellarg($dbhost) . " -u " . escapeshellarg($usernamedb) . " --no-tablespaces --ssl-mode=DISABLED " . escapeshellarg($dbname) . " > " . escapeshellarg($backup_file_name);
 
 $output = [];
 $return_var = 0;
 exec($command, $output, $return_var);
+@unlink($defaultsFile);
 if ($return_var !== 0) {
     telegram('sendmessage', [
         'chat_id' => $setting['Channel_Report'],
