@@ -50,6 +50,9 @@ render_config
 sec "render_config output"
 [ -f "$CONFIG_FILE" ] && ok "config.php written" || bad "config.php missing"
 head -1 "$CONFIG_FILE" | grep -q '<?php' && ok "starts with <?php" || bad "missing opening tag"
+grep -q 'die("error: database connection failed")' "$CONFIG_FILE" \
+    && ok "database connection failure is fatal" \
+    || bad "config.php would continue after a failed PDO connection"
 
 if command -v php >/dev/null 2>&1; then
     php -l "$CONFIG_FILE" >/dev/null 2>&1 && ok "php -l accepts the generated file" || {

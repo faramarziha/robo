@@ -781,7 +781,11 @@ valid_db_pass()     { [[ "$1" =~ ^[A-Za-z0-9_]{6,64}$ ]]; }
 
 validate_email() {
     [ -z "$1" ] && return 0   # optional
-    [[ "$1" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[a-zA-Z]{2,}$ ]]
+    # Kept deliberately stricter than RFC 5322 because this value is interpolated
+    # into certbot shell commands. Allow common mailbox syntax only; reject
+    # quotes, semicolons and other shell metacharacters even if a rare provider
+    # would accept them.
+    [[ "$1" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]
 }
 
 # Refuse install directories that would make uninstall catastrophic.
@@ -792,13 +796,17 @@ validate_bot_dir() {
         /*) ;;
         *) return 1 ;;
     esac
+    # The path is embedded in root-run shell snippets and Apache config. Keep
+    # it portable and non-ambiguous: no whitespace, quotes or shell control
+    # characters.
+    [[ "$d" =~ ^/[A-Za-z0-9._@%+=:,/-]+$ ]] || return 1
     case "${d%/}" in
         ""|/|/root|/etc|/var|/var/www|/var/www/html|/usr|/bin|/boot|/home) return 1 ;;
     esac
     return 0
 }
 
-validate_botname() { [ -n "$1" ]; }
+validate_botname() { [[ "$1" =~ ^@?[A-Za-z0-9_]{5,32}$ ]]; }
 
 normalize_botname() {
     local n="$1"
@@ -959,9 +967,14 @@ resolve_vars() {
             printf "  ${C_PROMPT}❯${CR} Bot username ${C_DIM}(without @)${CR}: "
             read -r BOTNAME
             BOTNAME="$(normalize_botname "$BOTNAME")"
+            validate_botname "$BOTNAME" || BOTNAME=""
         done
     else
         BOTNAME="$(normalize_botname "$BOTNAME")"
+        if ! validate_botname "$BOTNAME"; then
+            printf "  ${C_BAD}●${CR} ${C_BAD}Invalid value for --name:${CR} %s\n" "$BOTNAME"
+            exit 1
+        fi
     fi
     state_set BOTNAME "$BOTNAME"
 
@@ -1261,7 +1274,7 @@ phase_deps() {
     # cron/logrotate: this installer writes /etc/cron.d/mirzabot and a logrotate
     # config, neither of which does anything if the daemon is absent.
     run_step "Installing base tools (git, curl, wget, unzip, zip, jq, cron)" \
-        "apt-get install -y software-properties-common ca-certificates gnupg git unzip zip curl wget jq cron logrotate" \
+        "apt-get install -y software-properties-common ca-certificates gnupg git unzip zip curl wget jq cron logrotate sudo" \
         || { show_step_error; install_pause "Installing base tools"; }
 
     PHP_VER="$(resolve_php_ver)"
@@ -1900,7 +1913,7 @@ render_config() {
 \$passworddb = '${DB_PASS}';
 \$options = [ PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false, ];
 \$dsn = "mysql:host=\$dbhost;dbname=\$dbname;charset=utf8mb4";
-try { \$pdo = new PDO(\$dsn, \$usernamedb, \$passworddb, \$options); } catch (\PDOException \$e) { error_log("Database connection failed: " . \$e->getMessage()); }
+try { \$pdo = new PDO(\$dsn, \$usernamedb, \$passworddb, \$options); } catch (\PDOException \$e) { error_log("Database connection failed: " . \$e->getMessage()); die("error: database connection failed"); }
 \$APIKEY = '${BOT_TOKEN}';
 \$adminnumber = '${CHAT_ID}';
 \$domainhosts = '${DOMAIN}';
@@ -2116,6 +2129,23 @@ patch_cron_locks() {
 export -f patch_cron_locks
 
 write_cron_file() {
+    # The bot's legacy activecron() writes HTTP curl jobs into root's crontab.
+    # Apache now denies cronbot/ over HTTP, and /etc/cron.d/mirzabot is the
+    # authoritative scheduler, so prune those stale curl entries whenever the
+    # managed cron file is rebuilt. This keeps repair/update idempotent and
+    # avoids a permanent stream of 403 curl jobs after upgrading old installs.
+    if command -v crontab >/dev/null 2>&1; then
+        local legacy_tmp
+        legacy_tmp=$(mktemp /tmp/mirza-crontab.XXXXXX) || return 1
+        chmod 600 "$legacy_tmp" 2>/dev/null
+        if crontab -l > "$legacy_tmp.in" 2>/dev/null; then
+            grep -vE 'cronbot/[^[:space:]]+\.php' "$legacy_tmp.in" > "$legacy_tmp" || true
+            crontab "$legacy_tmp" 2>/dev/null || true
+        fi
+        rm -f "$legacy_tmp.in"
+        rm -f "$legacy_tmp"
+    fi
+
     # cron.d needs an explicit user field, and the filename may not contain a
     # dot or cron silently ignores it.
     {
@@ -2340,6 +2370,11 @@ set_webhook() {
     if [ -z "$SECRET_TOKEN" ]; then
         SECRET_TOKEN="$(openssl rand -hex 16)"
         state_set SECRET "$SECRET_TOKEN"
+        # Older config.php files did not have $webhook_secret. If repair or
+        # update registers a newly generated secret without writing it into
+        # config.php, the running bot keeps failing open and future webhook
+        # repairs may register a different secret. Persist it immediately.
+        [ -f "$CONFIG_FILE" ] && render_config && chown root:www-data "$CONFIG_FILE" 2>/dev/null && chmod 640 "$CONFIG_FILE" 2>/dev/null
     fi
     local resp
     resp=$(curl -fsS --max-time 20 \
@@ -2355,6 +2390,7 @@ make_safety_backup() {
     local stamp; stamp=$(date +%Y%m%d-%H%M%S)
     local dest="$STATE_DIR/backup-$stamp"
     mkdir -p "$dest" || return 1
+    chmod 700 "$dest" 2>/dev/null
     [ -f "$CONFIG_FILE" ] && cp -a "$CONFIG_FILE" "$dest/config.php"
     MYSQL_PWD="$DB_PASS" mysqldump -u"$DB_USER" --single-transaction --quick \
         --default-character-set=utf8mb4 "$DB_NAME" > "$dest/database.sql" 2>/dev/null
@@ -2425,6 +2461,8 @@ carry_runtime_data() {
 }
 export -f carry_runtime_data
 export PRESERVE_PATHS
+MIGRATE_DUMP="${MIGRATE_DUMP:-}"
+export MIGRATE_DUMP
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  update
@@ -2836,20 +2874,23 @@ backup_to_telegram() {
     require_install
     print_header "Backing up the database"
 
-    local stamp file
+    local stamp tmpdir file
     stamp=$(date +%Y%m%d-%H%M%S)
-    file="/tmp/${DB_NAME}-${stamp}.sql"
+    tmpdir=$(mktemp -d /tmp/mirza-backup.XXXXXX) || return 1
+    chmod 700 "$tmpdir" 2>/dev/null
+    file="$tmpdir/${DB_NAME}-${stamp}.sql"
 
     # MYSQL_PWD, not -p on the command line, which would expose the password
-    # in `ps` to every user on the box.
+    # in `ps` to every user on the box. The dump is written inside a 0700 temp
+    # directory so the user table is never briefly world-readable under /tmp.
     if ! MYSQL_PWD="$DB_PASS" mysqldump -u"$DB_USER" --single-transaction --quick \
             --default-character-set=utf8mb4 "$DB_NAME" > "$file" 2>/dev/null; then
-        rm -f "$file"
+        rm -rf "$tmpdir"
         printf "  ${C_BAD}●${CR} ${C_BAD}mysqldump failed.${CR}\n\n"
         return 1
     fi
     if [ ! -s "$file" ]; then
-        rm -f "$file"
+        rm -rf "$tmpdir"
         printf "  ${C_BAD}●${CR} ${C_BAD}The dump was empty; nothing was sent.${CR}\n\n"
         return 1
     fi
@@ -2866,7 +2907,7 @@ backup_to_telegram() {
         "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument" 2>&1)
 
     # Removed either way: it holds the full user table.
-    rm -f "$file"
+    rm -rf "$tmpdir"
 
     if echo "$resp" | grep -q '"ok":true'; then
         printf "  ${C_OK}●${CR} ${C_DIM}Backup (%s) sent to Telegram.${CR}\n\n" "$size"
@@ -2876,6 +2917,23 @@ backup_to_telegram() {
         return 1
     fi
 }
+
+
+restore_database_dump() {
+    set -o pipefail
+    local dump="${1:-$MIGRATE_DUMP}" cat_cmd
+    [ -f "$dump" ] || { echo "Dump file not found: $dump" >&2; return 1; }
+    case "$dump" in
+        *.gz) cat_cmd="gzip -dc --" ;;
+        *)    cat_cmd="cat --" ;;
+    esac
+    # The dump path is operator-supplied. Keep it in an exported variable read
+    # by this function instead of interpolating it into the bash -c string that
+    # run_step executes; otherwise a filename containing a quote could execute
+    # arbitrary shell as root during migration.
+    MYSQL_PWD="$DB_PASS" $cat_cmd "$dump" | MYSQL_PWD="$DB_PASS" mysql -u"$DB_USER" "$DB_NAME"
+}
+export -f restore_database_dump
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  migrate — restore an install from a backup onto THIS server
@@ -2920,11 +2978,9 @@ migrate_bot() {
     safety="$(make_safety_backup)"
     printf "  ${C_DIM}Current database saved to %s${CR}\n" "$safety"
 
-    local cat_cmd="cat"
-    case "$dump" in *.gz) cat_cmd="zcat" ;; esac
-
+    export MIGRATE_DUMP="$dump" DB_PASS DB_USER DB_NAME
     run_step "Restoring the database" \
-        "MYSQL_PWD='$DB_PASS' $cat_cmd '$dump' | MYSQL_PWD='$DB_PASS' mysql -u'$DB_USER' '$DB_NAME'" \
+        "restore_database_dump" \
         || { show_step_error
              printf "  ${C_BAD}●${CR} ${C_BAD}Restore failed. Your previous data is at %s${CR}\n\n" "$safety"
              return 1; }

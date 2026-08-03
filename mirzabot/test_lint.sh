@@ -38,7 +38,7 @@ while IFS= read -r line; do
     case "$line" in
         # $BOT_DIR is validated by validate_bot_dir before every use; $tmp and
         # $old are paths this script built with a $$ suffix.
-        *'"$BOT_DIR"'*|*'"$tmp"'*|*'"$old"'*|*'"$OLD"'*|*'"$NEW"'*|*'"$dest"'*|*'$SANDBOX'*)
+        *'"$BOT_DIR"'*|*'"$tmp"'*|*'"$tmpdir"'*|*'"$old"'*|*'"$OLD"'*|*'"$NEW"'*|*'"$dest"'*|*'$SANDBOX'*)
             ok "safe: ${line#*:}" ;;
         # repair_mysql purging a broken MySQL. Literal paths, no variable, and
         # it only runs during DEPS, which precheck_fresh_server has already
@@ -65,7 +65,7 @@ sec "functions used inside run_step are exported"
 # child shell" is exactly the thing a grep gets wrong. These all are.
 for fn in apt_recover setup_php_repo resolve_php_ver repair_mysql write_php_ini \
           write_pma_restrict write_cron_lock_helper patch_cron_locks write_cron_file \
-          setup_mysql_root install_php_deps ensure_composer carry_runtime_data; do
+          setup_mysql_root install_php_deps ensure_composer carry_runtime_data restore_database_dump; do
     grep -qE "^$fn\(\)" "$SRC" || { bad "$fn is not defined"; continue; }
     grep -qE "^export -f .*\b$fn\b" "$SRC" \
         && ok "$fn exported" \
@@ -74,7 +74,7 @@ done
 
 # Variables those exported functions read must cross the boundary too.
 sec "variables used by exported functions are exported"
-for v in TIMEZONE CRON_JOBS_SPEC PRESERVE_PATHS PHP_VER_CANDIDATES; do
+for v in TIMEZONE CRON_JOBS_SPEC PRESERVE_PATHS PHP_VER_CANDIDATES MIGRATE_DUMP; do
     grep -qE "^export .*\b$v\b" "$SRC" && ok "$v exported" \
         || bad "$v is read by an exported function but never exported"
 done
