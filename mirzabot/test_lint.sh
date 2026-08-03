@@ -22,7 +22,14 @@ bad() { echo "  FAIL - $1"; fail=$((fail+1)); }
 sec() { echo ""; echo "== $1 =="; }
 
 sec "syntax"
-bash -n "$SRC" 2>/dev/null && ok "bash -n clean" || { bad "bash -n failed"; bash -n "$SRC"; }
+case "$SRC" in
+    *.sh)
+        bash -n "$SRC" 2>/dev/null && ok "bash -n clean" || { bad "bash -n failed"; bash -n "$SRC"; }
+        ;;
+    *)
+        bad "refusing to run bash -n on non-shell source: $SRC"
+        ;;
+esac
 
 # ── Destructive commands must quote their target ───────────────────────────
 # An unquoted $BOT_DIR containing a space turns `rm -rf /opt/my bot` into two

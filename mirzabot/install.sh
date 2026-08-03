@@ -103,6 +103,7 @@ compute_paths() {
     DOMAIN_HOST="${DOMAIN%%/*}"
     CONFIG_FILE="$dir/config.php"
     STATE_FILE="$STATE_DIR/.mirza_install_state"
+    LOCK_FILE="$STATE_DIR/.mirza_install.lock"
     DB_ROOT_CRED="$STATE_DIR/dbrootmirza.txt"
     CONFIG_BACKUP="$STATE_DIR/config_backup.php"
     VHOST_HTTP="/etc/apache2/sites-available/${DOMAIN_HOST}.conf"
@@ -119,6 +120,7 @@ compute_paths() {
     # so the child always sees the current value rather than a stale one from
     # an earlier compute_paths.
     export DB_ROOT_CRED CONFIG_FILE BOT_DIR DOMAIN DOMAIN_HOST PHP_VER
+    export STATE_DIR STATE_FILE LOCK_FILE
     export PHP_BIN CRON_FILE
 
 }
@@ -326,17 +328,31 @@ install_pause() {
 #  Resumable-install state engine
 # ═══════════════════════════════════════════════════════════════════════════
 state_init() {
-    mkdir -p "$STATE_DIR" 2>/dev/null
+    mkdir -p "$STATE_DIR" 2>/dev/null || return 1
+    chmod 700 "$STATE_DIR" 2>/dev/null || true
     if [ ! -f "$STATE_FILE" ]; then
-        : > "$STATE_FILE"
-        chmod 600 "$STATE_FILE" 2>/dev/null
+        : > "$STATE_FILE" || return 1
+        chmod 600 "$STATE_FILE" 2>/dev/null || true
     fi
 }
 
+_state_atomic_replace() {
+    # Keep the resumable state file crash-safe: write a complete replacement
+    # in the same directory, fsync best-effort, then rename over the old file.
+    # A killed sed -i or append can otherwise leave a truncated/mixed state
+    # file that skips unsafe phases on the next retry.
+    local tmp dir
+    dir="$(dirname "$STATE_FILE")"
+    tmp=$(mktemp "$dir/.mirza_install_state.XXXXXX") || return 1
+    chmod 600 "$tmp" 2>/dev/null || true
+    cat > "$tmp" || { rm -f "$tmp"; return 1; }
+    sync -f "$tmp" 2>/dev/null || true
+    mv -f "$tmp" "$STATE_FILE" || { rm -f "$tmp"; return 1; }
+}
+
 state_set() {
-    state_init
-    sed -i "/^$1=/d" "$STATE_FILE" 2>/dev/null
-    printf '%s=%s\n' "$1" "$2" >> "$STATE_FILE"
+    state_init || return 1
+    { grep -v -E "^$1=" "$STATE_FILE" 2>/dev/null || true; printf '%s=%s\n' "$1" "$2"; } | _state_atomic_replace
 }
 
 state_get() {
@@ -349,8 +365,20 @@ phase_done() {
 }
 
 mark_phase() {
-    state_init
-    grep -qxF "PHASE:$1" "$STATE_FILE" 2>/dev/null || echo "PHASE:$1" >> "$STATE_FILE"
+    state_init || return 1
+    if ! grep -qxF "PHASE:$1" "$STATE_FILE" 2>/dev/null; then
+        { cat "$STATE_FILE" 2>/dev/null || true; printf 'PHASE:%s\n' "$1"; } | _state_atomic_replace
+    fi
+}
+
+acquire_install_lock() {
+    state_init || { echo "Could not create $STATE_DIR" >&2; exit 1; }
+    exec 9>"$LOCK_FILE" || { echo "Could not open $LOCK_FILE" >&2; exit 1; }
+    if ! flock -n 9; then
+        printf "  ${C_BAD}●${CR} ${C_BAD}Another Mirza installer command is already running.${CR}\n" >&2
+        printf "  ${C_DIM}Wait for it to finish, then retry. Lock: %s${CR}\n" "$LOCK_FILE" >&2
+        exit 1
+    fi
 }
 
 has_resumable_state() {
@@ -2781,7 +2809,7 @@ cmd_change_domain() {
 # Lets a phase re-run by clearing its completion marker.
 mark_phase_undo() {
     [ -f "$STATE_FILE" ] || return 0
-    sed -i "/^PHASE:$1\$/d" "$STATE_FILE" 2>/dev/null
+    grep -v -x -F "PHASE:$1" "$STATE_FILE" 2>/dev/null | _state_atomic_replace
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -3122,6 +3150,7 @@ main() {
     # summary can honestly tell the operator to use it. Skipped for uninstall,
     # which removes both the script and the link at the end.
     [ "$COMMAND" = "uninstall" ] || install_self
+    acquire_install_lock
 
     case "$COMMAND" in
         install)        install_bot ;;
