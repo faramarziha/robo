@@ -659,6 +659,11 @@ function mini_services(array $data, string $method): void
         $stmt = $pdo->prepare("SELECT * FROM product WHERE (Location = :loc OR Location = '/all')AND agent= :ag $category_remarks $time_range_day");
         $stmt->execute($queryParams);
         $product_list = [];
+
+        $stmts2 = $pdo->prepare("SELECT * FROM invoice WHERE Status != 'Unpaid' AND id_user = :mp4");
+        $stmts2->execute([':mp4' => $user_info['id']]);
+        $countorder = $stmts2->rowCount();
+
         while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $hide_panel = json_decode($result['hide_panel'], true);
             if (!is_array($hide_panel)) {
@@ -666,9 +671,6 @@ function mini_services(array $data, string $method): void
             }
             if (in_array($panel['name_panel'], $hide_panel))
                 continue;
-            $stmts2 = $pdo->prepare("SELECT * FROM invoice WHERE Status != 'Unpaid' AND id_user = :mp4");
-            $stmts2->execute([':mp4' => $user_info['id']]);
-            $countorder = $stmts2->rowCount();
             if ($result['one_buy_status'] == "1" && $countorder != 0)
                 continue;
             if (intval($user_info['pricediscount']) != 0) {
