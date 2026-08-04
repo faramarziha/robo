@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit bootstrap="mirzabot/ibsng/bootstrap.php"
+         colors="true"
+         stopOnFailure="false">
+    <testsuites>
+        <testsuite name="IBSng Test Suite">
+            <directory suffix="Test.php">mirzabot/tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>
