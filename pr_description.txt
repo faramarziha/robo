@@ -1,0 +1,3 @@
+🎯 **What:** The testing gap addressed is the lack of unit tests for the `allowAccessPeers` function in `mirzabot/WGDashboard.php`.
+📊 **Coverage:** The test ensures that `allowAccessPeers` constructs the URL, creates the correct headers (including API key), formats the payload with the correct public key, and queries the correct database tables.
+✨ **Result:** Test coverage for this key function is introduced by properly mocking `select` database calls and `CurlRequest` API calls via a dedicated `test_wg.sh` test suite inside `run_tests.sh`, keeping the repository well tested.

@@ -8,7 +8,7 @@
 
 cd "$(dirname "$0")" || exit 1
 
-SUITES="test_lint test_resolve test_cron test_lock test_lifecycle"
+SUITES="test_lint test_resolve test_cron test_lock test_lifecycle test_wg"
 
 total_pass=0
 total_fail=0
