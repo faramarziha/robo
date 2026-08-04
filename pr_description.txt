@@ -1,0 +1,3 @@
+🎯 What: Added unit tests for the `connect` method in the `IBSng` module (`mirzabot/ibsng/Modules/IBSng.php`).
+📊 Coverage: Added tests to ensure it returns early if already connected, successfully connects and updates the state if not connected, and properly throws an exception on failure.
+✨ Result: `IBSng::connect()` is now covered by an automated test suite (`test_ibsng.sh`), improving the reliability of the bot's communication layer.
