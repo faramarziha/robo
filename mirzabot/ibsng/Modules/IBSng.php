@@ -159,8 +159,6 @@ class IBSng
 
     protected function infoByUsername($username, $withPassword = false, $output = null)
     {
-//        $username = strtolower($username);
-
         if ($output == null) {
             $url = $this->hostname . '/IBSng/admin/user/user_info.php?normal_username_multi=' . $username;
             $output = $this->request($url);
