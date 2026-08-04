@@ -17,7 +17,7 @@ try {
     $pdo = new PDO($dsn, $usernamedb, $passworddb, $options);
 } catch (\PDOException $e) {
     error_log("Database connection failed: " . $e->getMessage());
-    die("error: database connection failed");
+    throw new Exception("error: database connection failed");
 }
 $APIKEY = '{API_KEY}';
 $adminnumber = '{admin_number}';

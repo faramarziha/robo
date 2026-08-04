@@ -65,7 +65,7 @@ if (is_array($keyboard_check) && preg_match('/[\x{600}-\x{6FF}\x{FB50}-\x{FDFF}]
 
 #-----------telegram_ip_ranges------------#
 if (!checktelegramip())
-    die("Unauthorized access");
+    throw new Exception("Unauthorized access");
 #-----------end telegram_ip_ranges------------#
 if (intval($from_id) == 0)
     return;
