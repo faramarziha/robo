@@ -129,14 +129,55 @@ class IBSng
         return $this->fetchAllUsers(1, 100);
     }
 
-    public function isUserValid()
+    public function isUserValid($username)
     {
-        // TODO: Implement isUserValid() method.
+        try {
+            $info = $this->infoByUsername($username);
+            // Check if user is not locked and credit > 0
+            if ($info['locked'] === '1' || floatval($info['credit']) <= 0) {
+                return false;
+            }
+            // Check if user is expired
+            if ($this->isUserExpired($username)) {
+                return false;
+            }
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
-    public function isUserExpired()
+    public function isUserExpired($username)
     {
-        // TODO: Implement isUserExpired() method.
+        try {
+            $info = $this->infoByUsername($username);
+
+            // Check status if available
+            if (isset($info['status']) && stripos($info['status'], 'expired') !== false) {
+                return true;
+            }
+
+            // Absolute expiration check
+            if ($info['absolute_expire_date'] !== '0' && !empty($info['absolute_expire_date'])) {
+                $expDate = strtotime($info['absolute_expire_date']);
+                if ($expDate !== false && $expDate < time()) {
+                    return true;
+                }
+            }
+
+            // Nearest expiration date check (IBSng usually sets this if relative or absolute has passed/approaching)
+            if ($info['nearest_expire_date'] !== '0' && !empty($info['nearest_expire_date'])) {
+                $expDate = strtotime($info['nearest_expire_date']);
+                if ($expDate !== false && $expDate < time()) {
+                    return true;
+                }
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            // Cannot retrieve user, consider expired/invalid
+            return true;
+        }
     }
 
     public function getUser($username)
