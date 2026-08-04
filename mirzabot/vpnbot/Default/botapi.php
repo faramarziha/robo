@@ -13,7 +13,7 @@ function telegram($method, $datas = [],$botToken = null)
     curl_setopt($ch, CURLOPT_POSTFIELDS, $datas);
     $res = curl_exec($ch);
     if (curl_error($ch)) {
-        var_dump(curl_error($ch));
+        error_log('Telegram request failed: ' . curl_error($ch));
     } else {
         return json_decode($res,true);
     }
