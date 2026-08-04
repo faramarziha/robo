@@ -92,7 +92,7 @@ function addpear($namepanel, $usernameac)
         );
     }
     $ipconfig = json_decode($ipconfig['body'], true);
-    if (!empty($ipconfig['status']) && $ipconfig['status'] == false)
+    if (isset($ipconfig['status']) && $ipconfig['status'] == false)
         return $ipconfig;
     $key = array_keys($ipconfig['data'])[0];
     $ipconfig = $ipconfig['data'][$key][0];
