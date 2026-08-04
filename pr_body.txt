@@ -1,0 +1,7 @@
+💡 What: Added PHPUnit tests for the `addUser` and `deleteUser` thin wrappers in the `IBSng` module. The tests use partial mocks to verify that they correctly delegate calls to their respective protected methods (`_addUser` and `_delUser`) with the right arguments. Also integrated PHPUnit into the existing bash-based test suite via a new `test_phpunit.sh` wrapper.
+
+🎯 Why: The thin wrappers were missing tests, creating a gap in test coverage. Testing them ensures that any future refactoring won't accidentally break the delegation or argument passing logic.
+
+📈 Impact: Improves overall code reliability by covering previously untested logic. Introduces PHPUnit to the project for sophisticated mock-based testing while ensuring backwards compatibility with the existing shell test runner.
+
+🧪 Verification: Ran `vendor/bin/phpunit ibsng/tests/IBSngTest.php` to confirm the new tests pass. Also executed the full `bash run_tests.sh` suite to ensure `test_phpunit` is integrated correctly and everything remains green.
