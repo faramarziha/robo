@@ -333,6 +333,24 @@ function ensureColumnExistsForUpdate($tableName, $fieldName, $valueSample = null
         error_log('Failed to ensure column exists: ' . $e->getMessage());
     }
 }
+
+function redactSensitiveValue($field, $value)
+{
+    $fieldName = strtolower((string) $field);
+    $sensitive = ['token', 'password', 'bot_token', 'apikey', 'api_key', 'secret', 'secret_code', 'valuepay'];
+    foreach ($sensitive as $needle) {
+        if ($needle !== '' && str_contains($fieldName, $needle)) {
+            return '[REDACTED]';
+        }
+    }
+
+    if (is_string($value) && preg_match('/^\s*Bearer\s+\S+/i', $value)) {
+        return '[REDACTED]';
+    }
+
+    return $value;
+}
+
 function update($table, $field, $newValue, $whereField = null, $whereValue = null)
 {
     global $pdo, $user;
@@ -385,7 +403,8 @@ function update($table, $field, $newValue, $whereField = null, $whereValue = nul
     if (!isset($user['step'])) {
         $user['step'] = '';
     }
-    $logValue = is_scalar($valueToStore) ? $valueToStore : json_encode($valueToStore, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $safeLogValue = redactSensitiveValue($field, $valueToStore);
+    $logValue = is_scalar($safeLogValue) ? $safeLogValue : json_encode($safeLogValue, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $logss = "{$table}_{$field}_{$logValue}_{$whereField}_{$whereValue}_{$user['step']}_$date";
     if ($field != "message_count" && $field != "last_message_time") {
         file_put_contents('log.txt', "\n" . $logss, FILE_APPEND);
@@ -2126,6 +2145,36 @@ function debitBalanceIfSufficient($userId, $amount)
  * mutex: only the first caller sees rowCount() === 1, so a replayed gateway
  * callback or an overlapping cron run cannot credit the same order twice.
  */
+
+function paymentCashbackPercent($settingName)
+{
+    $row = select("PaySetting", "ValuePay", "NamePay", $settingName, "select");
+    $value = is_array($row) && isset($row['ValuePay']) ? $row['ValuePay'] : 0;
+    return is_numeric($value) ? (float) $value : 0.0;
+}
+
+function applyPaymentCashback($userId, $invoicePrice, $settingName)
+{
+    $percent = paymentCashbackPercent($settingName);
+    if ($percent <= 0) {
+        return 0;
+    }
+
+    $amount = (int) round(((float) $invoicePrice * $percent) / 100);
+    if ($amount <= 0) {
+        return 0;
+    }
+
+    creditBalance($userId, $amount);
+    return $amount;
+}
+
+function paymentReportByOrder($orderId)
+{
+    $row = select("Payment_report", "*", "id_order", $orderId, "select", ['cache' => false]);
+    return is_array($row) ? $row : null;
+}
+
 function settleOrderOnce($orderId)
 {
     global $pdo;
