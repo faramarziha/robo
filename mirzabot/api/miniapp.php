@@ -426,9 +426,6 @@ function mini_categories(array $data, string $method): void
             ));
             return;
         }
-        $stmt = $pdo->prepare("SELECT * FROM category");
-        $stmt->execute();
-        $category_list = [];
         $panel = select("marzban_panel", "*", "code_panel", $data['id_panel'], "select");
         if (empty($panel)) {
             echo json_encode(array(
@@ -437,14 +434,24 @@ function mini_categories(array $data, string $method): void
             ));
             return;
         }
+
+        $stmt = $pdo->prepare("
+            SELECT c.id, c.remark
+            FROM category c
+            WHERE EXISTS (
+                SELECT 1
+                FROM product p
+                WHERE (p.Location = :location OR p.Location = '/all')
+                  AND p.category = c.remark
+                  AND p.agent = :agent
+            )
+        ");
+        $stmt->bindParam(':location', $panel['name_panel'], PDO::PARAM_STR);
+        $stmt->bindParam(':agent', $user_info['agent']);
+        $stmt->execute();
+
+        $category_list = [];
         while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $stmts = $pdo->prepare("SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND category = :category AND agent = :agent");
-            $stmts->bindParam(':location', $panel['name_panel'], PDO::PARAM_STR);
-            $stmts->bindParam(':category', $result['remark'], PDO::PARAM_STR);
-            $stmts->bindParam(':agent', $user_info['agent']);
-            $stmts->execute();
-            if ($stmts->rowCount() == 0)
-                continue;
             $category_list[] = [
                 'id' => $result['id'],
                 'name' => $result['remark'],
