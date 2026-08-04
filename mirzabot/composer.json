@@ -4,6 +4,11 @@
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "homepage": "https://github.com/mahdiMGF2/mirzabot",
+    "autoload": {
+        "psr-4": {
+            "radiusApi\\Modules\\": "ibsng/Modules/"
+        }
+    },
     "require": {
         "php": ">=8.2",
         "endroid/qr-code": "^6.0",
@@ -17,5 +22,11 @@
         }
     },
     "prefer-stable": true,
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "scripts": {
+        "test": "vendor/bin/phpunit"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    }
 }
