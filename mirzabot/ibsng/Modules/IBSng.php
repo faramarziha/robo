@@ -451,12 +451,7 @@ class IBSng
 
     public function fetchAllUsers($startUID, $pagePerRequest)
     {
-//        $bench = new \Ubench();
-//        $bench->start();
         $totalPages = $this->_csvPages($startUID, $pagePerRequest);
-//        $bench->end();
-//        echo 'Total Pages: ' . $totalPages . ' (time: ' . $bench->getTime(true) . ')' . PHP_EOL;
-//        unset($bench);
         if ($totalPages < 1) {
             return false;
         }
@@ -464,10 +459,7 @@ class IBSng
         $processed = 1;
         $userPages = array();
 
-//        $bench = new \Ubench();
-//        $bench->start();
         while ($processed <= $totalPages) {
-//            $userPages[] = is_array($this->_csv($startUID, $pagePerRequest, $processed)) ? $this->_csv($startUID, $pagePerRequest, $processed) : array();
 
             $temp = $this->_csv($startUID, $pagePerRequest, $processed);
             if (is_array($temp)) {
@@ -482,8 +474,6 @@ class IBSng
         $arrayMerge = new \ReflectionFunction("array_merge");
         $usersList = $arrayMerge->invokeArgs($userPages);
 
-//        $bench->end();
-//        echo 'got ' . count($usersList) . ' users (' . $bench->getTime(true) . ')' . PHP_EOL;
         return $usersList;
     }
 
