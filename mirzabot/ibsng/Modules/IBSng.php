@@ -131,12 +131,12 @@ class IBSng
 
     public function isUserValid()
     {
-        // TODO: Implement isUserValid() method.
+        throw new \BadMethodCallException('Not implemented');
     }
 
     public function isUserExpired()
     {
-        // TODO: Implement isUserExpired() method.
+        throw new \BadMethodCallException('Not implemented');
     }
 
     public function getUser($username)
