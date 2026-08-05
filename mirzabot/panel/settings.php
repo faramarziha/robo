@@ -164,7 +164,7 @@ include __DIR__ . '/inc/layout_head.php';
                         <div style="position:relative">
                             <input type="password" name="current_password" id="pw1" class="input" required
                                 autocomplete="current-password" style="padding-left:40px">
-                            <button type="button" onclick="togglePw('pw1', this)"
+                            <button type="button" onclick="togglePw('pw1', this)" aria-label="Toggle password visibility"
                                 style="position:absolute;left:10px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--dim);cursor:pointer">
                                 <?= icon('eye', 16) ?>
                             </button>
@@ -175,7 +175,7 @@ include __DIR__ . '/inc/layout_head.php';
                         <div style="position:relative">
                             <input type="password" name="new_password" id="pw2" class="input" minlength="6" required
                                 autocomplete="new-password" style="padding-left:40px" oninput="checkPwStr(this.value)">
-                            <button type="button" onclick="togglePw('pw2', this)"
+                            <button type="button" onclick="togglePw('pw2', this)" aria-label="Toggle password visibility"
                                 style="position:absolute;left:10px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--dim);cursor:pointer">
                                 <?= icon('eye', 16) ?>
                             </button>
@@ -189,7 +189,13 @@ include __DIR__ . '/inc/layout_head.php';
                     </div>
                     <div class="field">
                         <label><?= $textbotlang['panel']['settingsConfirmPasswordPlaceholder'] ?></label>
-                        <input type="password" name="confirm_password" class="input" required autocomplete="new-password">
+                        <div style="position:relative">
+                            <input type="password" name="confirm_password" id="pw3" class="input" required autocomplete="new-password" style="padding-left:40px">
+                            <button type="button" onclick="togglePw('pw3', this)" aria-label="Toggle password visibility"
+                                style="position:absolute;left:10px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--dim);cursor:pointer">
+                                <?= icon('eye', 16) ?>
+                            </button>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary"><?= icon('check', 14) ?> <?= $textbotlang['panel']['settingsPasswordStrengthLabel'] ?></button>
                 </div>

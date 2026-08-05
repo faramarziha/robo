@@ -109,8 +109,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
           <div class="field">
             <label for="password"><?= $textbotlang['panel']['loginErrorTitle'] ?></label>
-            <input type="password" id="password" name="password" class="input" placeholder="••••••••"
-              autocomplete="current-password" required maxlength="200">
+            <div style="position:relative">
+              <input type="password" id="password" name="password" class="input" placeholder="••••••••"
+                autocomplete="current-password" required maxlength="200" style="padding-left:40px">
+              <button type="button" onclick="togglePw('password', this)" aria-label="Toggle password visibility"
+                  style="position:absolute;left:10px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--dim);cursor:pointer">
+                  <?= icon('eye', 16) ?>
+              </button>
+            </div>
           </div>
           <button type="submit" class="btn btn-primary" id="loginBtn">
             <span id="loginText"><?= $textbotlang['panel']['loginShowPassword'] ?></span>
