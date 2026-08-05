@@ -4225,10 +4225,22 @@ elseif ($datain == "systemsms") {
             ],
         ];
     }
+    if ($typeagent == "all") {
+        $stmt_count = $pdo->query("SELECT COUNT(*) FROM user WHERE agent != 'f'");
+        $numpage = $stmt_count->fetchColumn();
+    } else {
+        $numpage = select("user", "*", "agent", $typeagent, "count");
+    }
+    $total_pages = max(1, ceil($numpage / $items_per_page));
+
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => "next_pageuseragent_$typeagent"
+        ],
+        [
+            'text' => "📄 $page / $total_pages",
+            'callback_data' => 'none'
         ]
     ];
     $backbtn = [
@@ -4237,17 +4249,26 @@ elseif ($datain == "systemsms") {
             'callback_data' => 'backlistuser'
         ]
     ];
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
     $keyboardlists['inline_keyboard'][] = $backbtn;
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+
     $keyboard_json = json_encode($keyboardlists);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);
 } elseif (preg_match('/next_pageuseragent_(\w+)/', $datain, $datagetr)) {
     $typeagent = $datagetr[1];
-    $numpage = select("user", "*", null, null, "count");
+    if ($typeagent == "all") {
+        $stmt_count = $pdo->query("SELECT COUNT(*) FROM user WHERE agent != 'f'");
+        $numpage = $stmt_count->fetchColumn();
+    } else {
+        $numpage = select("user", "*", "agent", $typeagent, "count");
+    }
     $page = $user['pagenumber'];
     $items_per_page = 10;
     $sum = $user['pagenumber'] * $items_per_page;
-    if ($sum > $numpage) {
+    if ($sum >= $numpage) {
         $next_page = 1;
     } else {
         $next_page = $page + 1;
@@ -4289,22 +4310,44 @@ elseif ($datain == "systemsms") {
             ],
         ];
     }
+    $total_pages = max(1, ceil($numpage / $items_per_page));
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => "next_pageuseragent_$typeagent"
         ],
         [
+            'text' => "📄 $next_page / $total_pages",
+            'callback_data' => 'none'
+        ],
+        [
             'text' => $textbotlang['users']['page']['previous'],
             'callback_data' => "previous_pageuseragent_$typeagent"
         ]
     ];
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    $backbtn = [
+        [
+            'text' => $textbotlang['keyboard']['backToPrev'],
+            'callback_data' => 'backlistuser'
+        ]
+    ];
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
+    $keyboardlists['inline_keyboard'][] = $backbtn;
+
     $keyboard_json = json_encode($keyboardlists);
     update("user", "pagenumber", $next_page, "id", $from_id);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);
 } elseif (preg_match('/previous_pageuseragent_(\w+)/', $datain, $datagetr)) {
     $typeagent = $datagetr[1];
+    if ($typeagent == "all") {
+        $stmt_count = $pdo->query("SELECT COUNT(*) FROM user WHERE agent != 'f'");
+        $numpage = $stmt_count->fetchColumn();
+    } else {
+        $numpage = select("user", "*", "agent", $typeagent, "count");
+    }
     $page = $user['pagenumber'];
     $items_per_page = 10;
     if ($user['pagenumber'] <= 1) {
@@ -4349,17 +4392,33 @@ elseif ($datain == "systemsms") {
             ],
         ];
     }
+    $total_pages = max(1, ceil($numpage / $items_per_page));
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => "next_pageuseragent_$typeagent"
         ],
         [
+            'text' => "📄 $next_page / $total_pages",
+            'callback_data' => 'none'
+        ],
+        [
             'text' => $textbotlang['users']['page']['previous'],
             'callback_data' => "previous_pageuseragent_$typeagent"
         ]
     ];
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    $backbtn = [
+        [
+            'text' => $textbotlang['keyboard']['backToPrev'],
+            'callback_data' => 'backlistuser'
+        ]
+    ];
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
+    $keyboardlists['inline_keyboard'][] = $backbtn;
+
     $keyboard_json = json_encode($keyboardlists);
     update("user", "pagenumber", $next_page, "id", $from_id);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);
@@ -9391,10 +9450,16 @@ if (isset($update["inline_query"])) {
             ],
         ];
     }
+    $numpage = select("user", "*", "cardpayment", "1", "count");
+    $total_pages = max(1, ceil($numpage / $items_per_page));
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => 'next_pageusercart'
+        ],
+        [
+            'text' => "📄 $page / $total_pages",
+            'callback_data' => 'none'
         ],
         [
             'text' => $textbotlang['users']['page']['previous'],
@@ -9407,16 +9472,20 @@ if (isset($update["inline_query"])) {
             'callback_data' => 'backlistuser'
         ]
     ];
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
     $keyboardlists['inline_keyboard'][] = $backbtn;
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+
     $keyboard_json = json_encode($keyboardlists);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);
 } elseif ($datain == 'next_pageusercart') {
-    $numpage = select("user", "*", null, null, "count");
+    $numpage = select("user", "*", "cardpayment", "1", "count");
     $page = $user['pagenumber'];
     $items_per_page = 10;
     $sum = $user['pagenumber'] * $items_per_page;
-    if ($sum > $numpage) {
+    if ($sum >= $numpage) {
         $next_page = 1;
     } else {
         $next_page = $page + 1;
@@ -9450,21 +9519,38 @@ if (isset($update["inline_query"])) {
             ],
         ];
     }
+    $total_pages = max(1, ceil($numpage / $items_per_page));
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => 'next_pageusercart'
         ],
         [
+            'text' => "📄 $next_page / $total_pages",
+            'callback_data' => 'none'
+        ],
+        [
             'text' => $textbotlang['users']['page']['previous'],
             'callback_data' => 'previous_pageusercart'
         ]
     ];
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    $backbtn = [
+        [
+            'text' => $textbotlang['keyboard']['backToPrev'],
+            'callback_data' => 'backlistuser'
+        ]
+    ];
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
+    $keyboardlists['inline_keyboard'][] = $backbtn;
+
     $keyboard_json = json_encode($keyboardlists);
     update("user", "pagenumber", $next_page, "id", $from_id);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);
 } elseif ($datain == 'previous_pageusercart') {
+    $numpage = select("user", "*", "cardpayment", "1", "count");
     $page = $user['pagenumber'];
     $items_per_page = 10;
     if ($user['pagenumber'] <= 1) {
@@ -9501,17 +9587,33 @@ if (isset($update["inline_query"])) {
             ],
         ];
     }
+    $total_pages = max(1, ceil($numpage / $items_per_page));
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => 'next_pageusercart'
         ],
         [
+            'text' => "📄 $next_page / $total_pages",
+            'callback_data' => 'none'
+        ],
+        [
             'text' => $textbotlang['users']['page']['previous'],
             'callback_data' => 'previous_pageusercart'
         ]
     ];
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    $backbtn = [
+        [
+            'text' => $textbotlang['keyboard']['backToPrev'],
+            'callback_data' => 'backlistuser'
+        ]
+    ];
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
+    $keyboardlists['inline_keyboard'][] = $backbtn;
+
     $keyboard_json = json_encode($keyboardlists);
     update("user", "pagenumber", $next_page, "id", $from_id);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);
@@ -10797,10 +10899,17 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
             ],
         ];
     }
+    $stmt_count = $pdo->query("SELECT COUNT(*) FROM user WHERE Balance < 0");
+    $numpage = $stmt_count->fetchColumn();
+    $total_pages = max(1, ceil($numpage / $items_per_page));
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => 'next_pageuserzero'
+        ],
+        [
+            'text' => "📄 $page / $total_pages",
+            'callback_data' => 'none'
         ]
     ];
     $backbtn = [
@@ -10809,16 +10918,21 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
             'callback_data' => 'backlistuser'
         ]
     ];
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
     $keyboardlists['inline_keyboard'][] = $backbtn;
+
     $keyboard_json = json_encode($keyboardlists);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);
 } elseif ($datain == 'next_pageuserzero') {
-    $numpage = select("user", "*", null, null, "count");
+    $stmt_count = $pdo->query("SELECT COUNT(*) FROM user WHERE Balance < 0");
+    $numpage = $stmt_count->fetchColumn();
     $page = $user['pagenumber'];
     $items_per_page = 10;
     $sum = $user['pagenumber'] * $items_per_page;
-    if ($sum > $numpage) {
+    if ($sum >= $numpage) {
         $next_page = 1;
     } else {
         $next_page = $page + 1;
@@ -10852,10 +10966,15 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
             ],
         ];
     }
+    $total_pages = max(1, ceil($numpage / $items_per_page));
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => 'next_pageuserzero'
+        ],
+        [
+            'text' => "📄 $next_page / $total_pages",
+            'callback_data' => 'none'
         ],
         [
             'text' => $textbotlang['users']['page']['previous'],
@@ -10868,12 +10987,18 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
             'callback_data' => 'backlistuser'
         ]
     ];
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
     $keyboardlists['inline_keyboard'][] = $backbtn;
+
     $keyboard_json = json_encode($keyboardlists);
     update("user", "pagenumber", $next_page, "id", $from_id);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);
 } elseif ($datain == 'previous_pageuserzero') {
+    $stmt_count = $pdo->query("SELECT COUNT(*) FROM user WHERE Balance < 0");
+    $numpage = $stmt_count->fetchColumn();
     $page = $user['pagenumber'];
     $items_per_page = 10;
     if ($user['pagenumber'] <= 1) {
@@ -10910,10 +11035,15 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
             ],
         ];
     }
+    $total_pages = max(1, ceil($numpage / $items_per_page));
     $pagination_buttons = [
         [
             'text' => $textbotlang['users']['page']['next'],
             'callback_data' => 'next_pageuserzero'
+        ],
+        [
+            'text' => "📄 $next_page / $total_pages",
+            'callback_data' => 'none'
         ],
         [
             'text' => $textbotlang['users']['page']['previous'],
@@ -10926,8 +11056,12 @@ if ($datain == "settimecornday" && $adminrulecheck['rule'] == "administrator") {
             'callback_data' => 'backlistuser'
         ]
     ];
-    $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+
+    if ($total_pages > 1) {
+        $keyboardlists['inline_keyboard'][] = $pagination_buttons;
+    }
     $keyboardlists['inline_keyboard'][] = $backbtn;
+
     $keyboard_json = json_encode($keyboardlists);
     update("user", "pagenumber", $next_page, "id", $from_id);
     Editmessagetext($from_id, $message_id, $textbotlang['Admin']['manageUser']['manageUserBtnDesc'], $keyboard_json);

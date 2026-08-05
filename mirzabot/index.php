@@ -227,24 +227,23 @@ if (isset($update['message']['successful_payment'])) {
         sendmessage($from_id, "⏰ متأسفانه مهلت فاکتور شما به پایان رسیده بود و استارزهای پرداختی به حساب شما بازگشت داده شد.", $keyboard, 'HTML');
         return;
     }
-    // Store full successful_payment data
+    // Store full successful_payment data before claiming the order.  The
+    // conditional settlement update is the idempotency guard: Telegram can
+    // redeliver successful_payment updates, and two webhook workers can see
+    // the same unpaid row concurrently. Only the first worker may provision.
     update("Payment_report", "dec_not_confirmed", ($Payment_report['dec_not_confirmed'] ?? '') . json_encode($sp), "id_order", $Payment_report['id_order']);
+    if (!settleOrderOnce($Payment_report['id_order'])) {
+        return;
+    }
     DirectPayment($Payment_report['id_order']);
-    update("Payment_report", "payment_Status", "paid", "id_order", $Payment_report['id_order']);
     // Apply Stars cashback if configured.
     // Only one Stars gateway remains ("telegram_stars"); the legacy
     // "Star Telegram" flow and its chashbackstar key were removed.
-    $cashbackKey = "chashbackstars";
-    $pricecashback = select("PaySetting", "ValuePay", "NamePay", $cashbackKey, "select")['ValuePay'] ?? '0';
-    $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select");
-    if ($pricecashback != "0" && !empty($Balance_id)) {
-        $result = ($Payment_report['price'] * floatval($pricecashback)) / 100;
-        if ($result > 0) {
-            $Balance_confrim = intval($Balance_id['Balance']) + $result;
-            update("user", "Balance", $Balance_confrim, "id", $Balance_id['id']);
-            $text_report = sprintf($textbotlang['users']['Discount']['gift-deposit'] ?? "🎁 هدیه خرید: %s تومان", number_format($result));
-            sendmessage($Balance_id['id'], $text_report, null, 'HTML');
-        }
+    $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select", ['cache' => false]);
+    $cashback = applyPaymentCashback($Payment_report['id_user'], $Payment_report['price'], "chashbackstars");
+    if ($cashback > 0 && !empty($Balance_id)) {
+        $text_report = sprintf($textbotlang['users']['Discount']['gift-deposit'] ?? "🎁 هدیه خرید: %s تومان", number_format($cashback));
+        sendmessage($Balance_id['id'], $text_report, null, 'HTML');
     }
     // Report to admin channel
     if (strlen($setting['Channel_Report'] ?? '') > 0) {
@@ -5433,7 +5432,9 @@ if (preg_match('/Confirmpay_user_(\w+)_(\w+)/', $datain, $dataget)) {
             'show_alert' => true,
             'cache_time' => 5,
         ));
-        update("Payment_report", "payment_Status", "paid", "id_order", $Payment_report['id_order']);
+        if (!settleOrderOnce($Payment_report['id_order'])) {
+            return;
+        }
         DirectPayment($Payment_report['id_order']);
         $__q10 = $pdo->prepare("SELECT * FROM user WHERE id = ? LIMIT 1");
         $__q10->bindValue(1, $Payment_report['id_user'], PDO::PARAM_STR);
