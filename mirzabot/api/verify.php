@@ -50,6 +50,32 @@ function normalize_init_value($value): string
     return (string) $value;
 }
 
+
+function validate_init_auth_date(array $initData, int $maxAgeSeconds = 600): void
+{
+    if (!isset($initData['auth_date']) || !is_numeric($initData['auth_date'])) {
+        throw new RuntimeException('Telegram init data is missing auth_date');
+    }
+
+    $authDate = (int) $initData['auth_date'];
+    $now = time();
+    if ($authDate > $now + 60 || ($now - $authDate) > $maxAgeSeconds) {
+        throw new RuntimeException('Telegram init data has expired');
+    }
+}
+
+function create_miniapp_session_token(int|string $userId): string
+{
+    global $APIKEY;
+
+    $issuedAt = time();
+    $random = bin2hex(random_bytes(20));
+    $payload = 'v1.' . $issuedAt . '.' . $random;
+    $signature = hash_hmac('sha256', $payload . '.' . $userId, $APIKEY);
+
+    return $payload . '.' . $signature;
+}
+
 function validate_telegram_init_data($rawData, string $botToken): array
 {
     if (is_string($rawData)) {
@@ -94,6 +120,8 @@ function validate_telegram_init_data($rawData, string $botToken): array
     if ($dataCheckArray === []) {
         throw new InvalidArgumentException('Telegram init data payload is empty');
     }
+
+    validate_init_auth_date($initData);
 
     sort($dataCheckArray, SORT_STRING);
     $dataCheckString = implode("\n", $dataCheckArray);
@@ -250,7 +278,7 @@ if (!$userRecord) {
 }
 
 try {
-    $randomString = bin2hex(random_bytes(20));
+    $randomString = create_miniapp_session_token($userId);
 } catch (Exception $exception) {
     error_log('Failed to generate random token: ' . $exception->getMessage());
     respond_json(500, [

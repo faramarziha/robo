@@ -13,6 +13,19 @@ date_default_timezone_set('Asia/Tehran');
 ini_set('default_charset', 'UTF-8');
 ini_set('error_log', 'error_log');
 $ManagePanel = new ManagePanel();
+
+function miniappTokenExpired(string $token, int $maxAgeSeconds = 86400): bool
+{
+    $parts = explode('.', $token);
+    if (count($parts) !== 4 || $parts[0] !== 'v1' || !ctype_digit($parts[1])) {
+        return false; // Legacy tokens remain valid until the user obtains a fresh token.
+    }
+
+    $issuedAt = (int) $parts[1];
+    $now = time();
+    return $issuedAt > $now + 60 || ($now - $issuedAt) > $maxAgeSeconds;
+}
+
 $headers = getallheaders();
 $setting = select("setting", "*");
 $method = $_SERVER['REQUEST_METHOD'];
@@ -59,7 +72,7 @@ if ($tokencheck === '') {
 // Authenticate before touching anything else: the session token, not the
 // client-supplied user_id, decides whose account this request acts on.
 $usercheck = select('user', "*", "token", $tokencheck, "select");
-if (!$usercheck || !is_string($usercheck['token']) || !hash_equals($usercheck['token'], $tokencheck)) {
+if (!$usercheck || !is_string($usercheck['token']) || !hash_equals($usercheck['token'], $tokencheck) || miniappTokenExpired($tokencheck)) {
     http_response_code(403);
     echo json_encode([
         'status' => false,
