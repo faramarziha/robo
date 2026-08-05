@@ -4,7 +4,7 @@
 
 php "$(dirname "$0")/test_ibsng.php"
 
-# Test the IBSng class isUserValid/isUserExpired methods, and the
+# Test the IBSng class isUserValid/isUserExpired/disconnect methods, and the
 # deleteUserIBSng() wrapper in mirzabot/ibsng.php
 
 cd "$(dirname "$0")" || return 1
@@ -247,6 +247,112 @@ else
 fi
 
 rm -f test_ibsng_mock.php test_ibsng_temp.php
+
+# ---------------------------------------------------------------------------
+# disconnect() tests
+# ---------------------------------------------------------------------------
+
+# Setup a test file (deliberately NOT named test_ibsng.php: that path is the
+# real, committed connect()-test file added by an earlier PR, and must not be
+# overwritten or deleted by this script)
+cat << 'PHP' > test_ibsng_disconnect_tmp.php
+<?php
+
+// We will mock unlink and curl_close in the namespace radiusApi\Modules
+namespace radiusApi\Modules {
+    $GLOBALS['unlink_called'] = false;
+    $GLOBALS['curl_close_called'] = false;
+
+    function unlink($path) {
+        $GLOBALS['unlink_called'] = true;
+        return true;
+    }
+
+    function curl_close($ch) {
+        $GLOBALS['curl_close_called'] = true;
+    }
+
+    require_once __DIR__ . '/ibsng/Modules/IBSng.php';
+
+    class TestIBSng extends IBSng {
+        public function __construct() {
+            // Skip parent constructor to avoid checking curl extension
+        }
+
+        public function setHandler($handler) {
+            $this->handler = $handler;
+        }
+
+        public function setCookiePath($path) {
+            $this->cookiePathName = $path;
+        }
+
+        public function _getCookie() {
+            return $this->getCookie();
+        }
+    }
+}
+
+namespace {
+    use radiusApi\Modules\TestIBSng;
+
+    class MockCurlHandler {
+        public $closed = false;
+    }
+
+    $test = new TestIBSng();
+    $test->setCookiePath('/tmp/test_cookie_path_fake');
+    $test->setHandler(new MockCurlHandler());
+
+    $test->disconnect();
+
+    if ($GLOBALS['unlink_called']) {
+        echo "UNLINK_OK\n";
+    } else {
+        echo "UNLINK_FAIL\n";
+    }
+
+    if ($GLOBALS['curl_close_called']) {
+        echo "CURLCLOSE_OK\n";
+    } else {
+        echo "CURLCLOSE_FAIL\n";
+    }
+
+    // Also test without handler
+    $GLOBALS['unlink_called'] = false;
+    $GLOBALS['curl_close_called'] = false;
+
+    $test2 = new TestIBSng();
+    $test2->disconnect();
+
+    if (!$GLOBALS['unlink_called'] && !$GLOBALS['curl_close_called']) {
+        echo "NULLHANDLER_OK\n";
+    } else {
+        echo "NULLHANDLER_FAIL\n";
+    }
+}
+PHP
+
+disc_out=$(php test_ibsng_disconnect_tmp.php 2>&1)
+rm -f test_ibsng_disconnect_tmp.php
+
+if echo "$disc_out" | grep -q "UNLINK_OK"; then
+    ok "disconnect() calls unlink on the cookie file"
+else
+    bad "disconnect() calls unlink on the cookie file" "UNLINK_OK" "$disc_out"
+fi
+
+if echo "$disc_out" | grep -q "CURLCLOSE_OK"; then
+    ok "disconnect() calls curl_close on the handler"
+else
+    bad "disconnect() calls curl_close on the handler" "CURLCLOSE_OK" "$disc_out"
+fi
+
+if echo "$disc_out" | grep -q "NULLHANDLER_OK"; then
+    ok "disconnect() is a no-op when there is no handler"
+else
+    bad "disconnect() is a no-op when there is no handler" "NULLHANDLER_OK" "$disc_out"
+fi
 
 # ---------------------------------------------------------------------------
 
