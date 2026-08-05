@@ -157,29 +157,29 @@ function inv_remove_service(array $data, string $method): void
         update("invoice", "Status", "removebyadmin", "id_invoice", $data["id_invoice"]);
         $ManagePanel->RemoveUser($invoice['Service_location'], $invoice['username']);
     } elseif ($data['type'] == "tow") {
-        // Idempotency guard: the conditional UPDATE is the mutex. Without it a
-        // replayed request credited the wallet again on every POST.
-        $guard = $pdo->prepare(
-            "UPDATE invoice SET Status = 'removebyadmin' WHERE id_invoice = :id AND Status <> 'removebyadmin'"
-        );
-        $guard->execute([':id' => $data['id_invoice']]);
-        if ($guard->rowCount() !== 1) {
-            sendJsonResponse(false, "invoice already refunded", [], 409);
-        }
-        clearSelectCache('invoice');
+        withTransaction(function () use ($pdo, $data, $invoice, $ManagePanel) {
+            // Idempotency guard: the conditional UPDATE is the mutex. Without it a
+            // replayed request credited the wallet again on every POST.
+            $guard = $pdo->prepare(
+                "UPDATE invoice SET Status = 'removebyadmin' WHERE id_invoice = :id AND Status <> 'removebyadmin'"
+            );
+            $guard->execute([':id' => $data['id_invoice']]);
+            if ($guard->rowCount() !== 1) {
+                sendJsonResponse(false, "invoice already refunded", [], 409);
+            }
+            clearSelectCache('invoice');
 
-        // Clamp the refund to what was actually paid; 'amount' is client-supplied
-        // and previously had no upper bound.
-        $refund = requireInt($data, 'amount', 0);
-        $maxRefund = (int) ($invoice['price_product'] ?? 0);
-        if ($maxRefund > 0 && $refund > $maxRefund) {
-            $refund = $maxRefund;
-        }
+            // Clamp the refund to what was actually paid; 'amount' is client-supplied
+            // and previously had no upper bound.
+            $refund = requireInt($data, 'amount', 0);
+            $maxRefund = (int) ($invoice['price_product'] ?? 0);
+            if ($maxRefund > 0 && $refund > $maxRefund) {
+                $refund = $maxRefund;
+            }
 
-        $stmt = $pdo->prepare("UPDATE user SET Balance = COALESCE(Balance, 0) + :balance WHERE id = :mp2");
-        $stmt->execute([':mp2' => $invoice['id_user'], ':balance' => $refund]);
-        clearSelectCache('user');
-        $ManagePanel->RemoveUser($invoice['Service_location'], $invoice['username']);
+            creditBalance($invoice['id_user'], $refund);
+            $ManagePanel->RemoveUser($invoice['Service_location'], $invoice['username']);
+        });
     } elseif ($data['type'] == "three") {
         $stmt = $pdo->prepare("DELETE  FROM invoice WHERE id_invoice = :id_invoice");
         $stmt->execute(['id_invoice' => $data['id_invoice']]);

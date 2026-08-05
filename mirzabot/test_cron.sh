@@ -33,7 +33,19 @@ fi
 BOT_DIR="$SANDBOX/bot"
 PHP_BIN="$(command -v php || echo php)"
 CRON_FILE="$SANDBOX/cron.d_mirzabot"
-export BOT_DIR PHP_BIN CRON_FILE
+FAKE_CRONTAB="$SANDBOX/root.crontab"
+mkdir -p "$SANDBOX/bin"
+cat > "$SANDBOX/bin/crontab" <<'SH'
+#!/bin/sh
+if [ "$1" = "-l" ]; then
+    [ -f "$FAKE_CRONTAB" ] && cat "$FAKE_CRONTAB"
+    exit 0
+fi
+cat "$1" > "$FAKE_CRONTAB"
+SH
+chmod +x "$SANDBOX/bin/crontab"
+PATH="$SANDBOX/bin:$PATH"
+export BOT_DIR PHP_BIN CRON_FILE FAKE_CRONTAB PATH
 mkdir -p "$BOT_DIR"
 cp -r "$CRONSRC" "$BOT_DIR/cronbot"
 # shellcheck disable=SC1090
@@ -142,6 +154,7 @@ grep -q 'mirza_cron_lock' "$BOT_DIR/cronbot/croncard.php" && ok "re-patched afte
 sec "cron.d file (invoked via bash -c, like run_step)"
 export -f write_cron_lock_helper patch_cron_locks write_cron_file
 export CRON_JOBS_SPEC BOT_DIR PHP_BIN CRON_FILE
+printf '%s\n' '*/1 * * * * curl https://old.example.com/cronbot/croncard.php' '# keep-me' > "$FAKE_CRONTAB"
 child_out=$(bash -c 'write_cron_file' 2>&1)
 child_rc=$?
 [ "$child_rc" -eq 0 ] && ok "write_cron_file ran in a child shell" || bad "child shell failed ($child_rc): $child_out"
@@ -150,6 +163,13 @@ lines=$(grep -cE '^\*|^0' "$CRON_FILE")
 [ "$lines" -eq 17 ] && ok "17 job lines emitted" || bad "$lines job lines, expected 17"
 grep -q 'www-data' "$CRON_FILE" && ok "user field present (required by cron.d)" || bad "no user field"
 grep -q 'MAILTO' "$CRON_FILE" && ok "MAILTO set (no mail spam)" || bad "MAILTO missing"
+grep -q 'old.example.com/cronbot/croncard.php' "$FAKE_CRONTAB" 2>/dev/null \
+    && bad "legacy root cronbot curl entry kept" \
+    || ok "legacy root cronbot curl entry pruned"
+grep -q 'keep-me' "$FAKE_CRONTAB" 2>/dev/null \
+    && ok "non-Mirza root crontab entry preserved" \
+    || bad "non-Mirza root crontab entry removed"
+
 # A job for a script that does not exist must be skipped, not emitted.
 rm -f "$BOT_DIR/cronbot/lottery.php" 2>/dev/null
 mv "$BOT_DIR/cronbot/gift.php" "$SANDBOX/gift.away"

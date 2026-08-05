@@ -148,6 +148,35 @@ function readJsonBody()
     return sanitizeRecursive($data);
 }
 
+
+function redactHeadersForLog($headers)
+{
+    if (!is_array($headers)) {
+        return [];
+    }
+
+    $sensitive = ['token', 'authorization', 'cookie', 'set-cookie', 'x-telegram-init-data', 'x-telegram-web-app-init-data', 'telegram-init-data'];
+    foreach ($headers as $key => $value) {
+        foreach ($sensitive as $name) {
+            if (strcasecmp((string) $key, $name) === 0) {
+                $headers[$key] = '[REDACTED]';
+                continue 2;
+            }
+        }
+    }
+
+    return $headers;
+}
+
+function normalizeApiInputData()
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
+        return sanitizeRecursive($_GET);
+    }
+
+    return readJsonBody();
+}
+
 function logApiRequest($headers, $data, $action)
 {
     global $pdo;
@@ -157,7 +186,7 @@ function logApiRequest($headers, $data, $action)
             "INSERT IGNORE INTO logs_api (header, data, time, ip, actions) VALUES (?, ?, ?, ?, ?)"
         );
         $stmt->execute([
-            json_encode($headers),
+            json_encode(redactHeadersForLog($headers)),
             json_encode($data),
             date('Y/m/d H:i:s'),
             $_SERVER['REMOTE_ADDR'] ?? 'unknown',
@@ -173,7 +202,7 @@ function apiRequestContext()
     $headers = getallheaders();
     requireApiToken($headers);
 
-    $data = readJsonBody();
+    $data = normalizeApiInputData();
     $action = isset($data['actions']) && is_scalar($data['actions']) ? (string) $data['actions'] : '';
 
     logApiRequest($headers, $data, $action === '' ? 'unknown' : $action);

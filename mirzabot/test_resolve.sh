@@ -79,7 +79,7 @@ echo
 echo "== path 2: defaults applied under --yes =="
 (
     harness
-    DOMAIN="bot.example.com"; BOT_TOKEN="$TOKEN_OK"; CHAT_ID="777"; BOTNAME="b"
+    DOMAIN="bot.example.com"; BOT_TOKEN="$TOKEN_OK"; CHAT_ID="777"; BOTNAME="botname"
     ASSUME_YES=1
     resolve_vars >/dev/null 2>&1
     is "BOT_DIR default" "/var/www/html/mirzaprobotconfig" "$BOT_DIR"
@@ -148,7 +148,7 @@ echo "== path 6: invalid input is re-prompted, not accepted =="
     harness
     ASSUME_YES=0
     resolve_vars >/dev/null 2>&1 \
-        < <(printf '\nnot-a-domain\ngood.example.com\n%s\nabc\n555\nbot\n\n\n\n\n\n' "$TOKEN_OK")
+        < <(printf '\nnot-a-domain\ngood.example.com\n%s\nabc\n555\nvalid_bot\n\n\n\n\n\n' "$TOKEN_OK")
     is "bad domain rejected" "good.example.com" "$DOMAIN"
     is "bad chat rejected"   "555"              "$CHAT_ID"
 )

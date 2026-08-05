@@ -23,14 +23,19 @@ sed -n '/^render_config()/,/^}$/p'   "$SRC" >  "$FNS"
 sed -n '/^config_get()/,/^}$/p'      "$SRC" >> "$FNS"
 sed -n '/^validate_domain()/,/^}$/p' "$SRC" >> "$FNS"
 sed -n '/^validate_bot_dir()/,/^}$/p' "$SRC" >> "$FNS"
-for f in render_config config_get validate_domain validate_bot_dir; do
+sed -n '/^state_init()/,/^}$/p'       "$SRC" >> "$FNS"
+sed -n '/^_state_atomic_replace()/,/^}$/p' "$SRC" >> "$FNS"
+sed -n '/^state_set()/,/^}$/p'        "$SRC" >> "$FNS"
+sed -n '/^mark_phase()/,/^}$/p'       "$SRC" >> "$FNS"
+sed -n '/^mark_phase_undo()/,/^}$/p'  "$SRC" >> "$FNS"
+for f in render_config config_get validate_domain validate_bot_dir state_init _state_atomic_replace state_set mark_phase mark_phase_undo; do
     grep -q "^$f()" "$FNS" || { echo "FATAL: could not extract $f"; exit 1; }
 done
 # shellcheck disable=SC1090
 source "$FNS"
 
 sec "extraction"
-ok "extracted render_config + config_get + validators"
+ok "extracted render_config + config_get + validators + state helpers"
 
 # ── Round-trip ─────────────────────────────────────────────────────────────
 # Values chosen to break a naive parser: a token with ':' and '-', a domain
@@ -50,6 +55,9 @@ render_config
 sec "render_config output"
 [ -f "$CONFIG_FILE" ] && ok "config.php written" || bad "config.php missing"
 head -1 "$CONFIG_FILE" | grep -q '<?php' && ok "starts with <?php" || bad "missing opening tag"
+grep -q 'die("error: database connection failed")' "$CONFIG_FILE" \
+    && ok "database connection failure is fatal" \
+    || bad "config.php would continue after a failed PDO connection"
 
 if command -v php >/dev/null 2>&1; then
     php -l "$CONFIG_FILE" >/dev/null 2>&1 && ok "php -l accepts the generated file" || {
@@ -91,6 +99,69 @@ sec "missing file"
 CONFIG_FILE="$SANDBOX/nope.php"
 [ -z "$(config_get dbname)" ] && ok "returns empty for a missing file" || bad "returned data for a missing file"
 config_get dbname >/dev/null 2>&1; [ $? -ne 0 ] && ok "non-zero exit for a missing file" || bad "exit 0 for a missing file"
+
+# ── Crash-safe state writes ─────────────────────────────────────────────────
+sec "atomic installer state"
+STATE_DIR="$SANDBOX/state"
+STATE_FILE="$STATE_DIR/.mirza_install_state"
+state_set DOMAIN "old.example.com" && state_set DOMAIN "new.example.com" \
+    && [ "$(grep -c '^DOMAIN=' "$STATE_FILE")" -eq 1 ] \
+    && grep -qx 'DOMAIN=new.example.com' "$STATE_FILE" \
+    && ok "state_set replaces keys with a single complete record" \
+    || bad "state_set left duplicate or stale keys"
+mark_phase FILES && mark_phase FILES \
+    && [ "$(grep -c '^PHASE:FILES$' "$STATE_FILE")" -eq 1 ] \
+    && ok "mark_phase is idempotent" \
+    || bad "mark_phase duplicated completion markers"
+mark_phase DB && mark_phase_undo FILES \
+    && ! grep -qx 'PHASE:FILES' "$STATE_FILE" \
+    && grep -qx 'PHASE:DB' "$STATE_FILE" \
+    && ok "mark_phase_undo removes only the requested phase" \
+    || bad "mark_phase_undo corrupted unrelated state"
+find "$STATE_DIR" -name '.mirza_install_state.*' | grep -q . \
+    && bad "temporary state file was left behind" \
+    || ok "atomic state updates leave no stale temp files"
+[ "$(stat -c %a "$STATE_FILE" 2>/dev/null)" = "600" ] \
+    && ok "state file remains private" \
+    || bad "state file permissions are not 600"
+
+# ── Admin panel race hardening ─────────────────────────────────────────────
+sec "admin panel race hardening"
+ADMIN_SRC="$(dirname "$0")/admin.php"
+reject_agent_block=$(sed -n '/rejectrequesta_/,/addagentrequest_/p' "$ADMIN_SRC")
+accept_agent_block=$(sed -n '/addagentrequest_/,/setagenttype_/p' "$ADMIN_SRC")
+printf '%s\n' "$reject_agent_block" | grep -q "status NOT IN ('reject', 'accept')" \
+    && printf '%s\n' "$reject_agent_block" | grep -q 'creditBalance' \
+    && ok "agent rejection atomically claims before refund" \
+    || bad "agent rejection can double-refund or race accept"
+printf '%s\n' "$reject_agent_block" | grep -q 'withTransaction' \
+    && ok "agent rejection claim and refund share a transaction" \
+    || bad "agent rejection is not transactional"
+printf '%s\n' "$accept_agent_block" | grep -q "status NOT IN ('reject', 'accept')" \
+    && printf '%s\n' "$accept_agent_block" | grep -q 'withTransaction' \
+    && ok "agent approval atomically claims before granting seller access" \
+    || bad "agent approval can race reject or duplicate approval"
+
+# ── Payment callback idempotency ───────────────────────────────────────────
+sec "payment callback idempotency"
+APP_SRC="$(dirname "$0")/index.php"
+stars_block=$(awk '/successful_payment/ {capture=1} capture {print} /#-----------end Telegram Stars payment/ {exit}' "$APP_SRC")
+manual_block=$(sed -n '/Confirmpay_user_/,/reject_pay/p' "$APP_SRC")
+if printf '%s\n' "$stars_block" | grep -q 'settleOrderOnce' \
+    && [ "$(printf '%s\n' "$stars_block" | grep -n 'settleOrderOnce' | head -1 | cut -d: -f1)" -lt "$(printf '%s\n' "$stars_block" | grep -n 'DirectPayment' | head -1 | cut -d: -f1)" ]; then
+    ok "Telegram Stars settlement is claimed before provisioning"
+else
+    bad "Telegram Stars can provision before idempotent settlement"
+fi
+printf '%s\n' "$stars_block" | grep -q 'applyPaymentCashback' \
+    && ok "Telegram Stars cashback uses atomic balance credit" \
+    || bad "Telegram Stars cashback still uses read-then-write balance update"
+if printf '%s\n' "$manual_block" | grep -q 'settleOrderOnce' \
+    && [ "$(printf '%s\n' "$manual_block" | grep -n 'settleOrderOnce' | head -1 | cut -d: -f1)" -lt "$(printf '%s\n' "$manual_block" | grep -n 'DirectPayment' | head -1 | cut -d: -f1)" ]; then
+    ok "manual NowPayments confirmation is claimed before provisioning"
+else
+    bad "manual NowPayments confirmation can provision before idempotent settlement"
+fi
 
 # ── Uninstall guard ────────────────────────────────────────────────────────
 # cmd_uninstall runs `rm -rf "$BOT_DIR"`, so validate_bot_dir is the last
@@ -210,6 +281,9 @@ fi
 sec "install_self"
 grep -qE '^install_self\(\)' "$SRC" && ok "install_self defined" || bad "install_self missing"
 grep -qE '\|\| install_self' "$SRC" && ok "invoked from main()" || bad "install_self never called"
+grep -qE '^acquire_install_lock\(\)' "$SRC" && ok "installer command lock defined" || bad "installer command lock missing"
+grep -q 'flock -n 9' "$SRC" && ok "installer command lock is non-blocking" || bad "installer command lock does not use flock"
+grep -qE '^    acquire_install_lock$' "$SRC" && ok "main acquires installer command lock" || bad "main does not acquire installer command lock"
 # Re-exec'ing into a freshly downloaded script mid-run is what made the old
 # installer replace itself during an unrelated `diagnose`.
 grep -qE 'exec bash "\$MASTER_(SCRIPT|PATH)"' "$SRC" \
