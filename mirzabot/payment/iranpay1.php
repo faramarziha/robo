@@ -17,76 +17,66 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 
 $ManagePanel = new ManagePanel();
-$data = json_decode(file_get_contents("php://input"), true);
-$hashid = $data['hashid'];
-$authority = $data['authority'];
-$StatusPayment = $data['status'];
-$setting = select("setting", "*");
-$PaySetting = select("PaySetting", "*", "NamePay", "marchent_floypay", "select")['ValuePay'];
-$Payment_reports = select("Payment_report", "*", "id_order", $hashid, "select");
-$invoice_id = $Payment_reports['id_order'];
-$price = $Payment_reports['price'];
-// verify Transaction
-$dec_payment_status = "";
-$payment_status = "";
-if ($StatusPayment == 100) {
-    $curl = curl_init();
-    $data = [
-        "ApiKey" => $PaySetting,
-        "authority" => $authority,
-        "hashid" => $invoice_id,
-    ];
-    curl_setopt_array($curl, array(
-        CURLOPT_URL => "https://tetra98.com/api/verify",
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_POSTFIELDS => json_encode($data),
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_HTTPHEADER => array(
-            'Content-Type: application/json',
-            'Accept: application/json'
-        ),
-    ));
-    $response = curl_exec($curl);
-    curl_close($curl);
-    $response = json_decode($response, true);
-    if (!empty($response['status']) && $response['status'] == 100) {
-        $payment_status = $textbotlang['paymentGateway']['statusSuccess'];
-        $dec_payment_status = $textbotlang['paymentGateway']['descThanks'];
-        $Payment_report = select("Payment_report", "*", "id_order", $invoice_id, "select");
-        if ($Payment_report['payment_Status'] != "paid") {
-            $textbotlang = languagechange();
-            DirectPayment($invoice_id, "../images.jpg");
-            $pricecashback = select("PaySetting", "ValuePay", "NamePay", "chashbackiranpay1", "select")['ValuePay'];
-            $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select");
-            if ($pricecashback != "0") {
-                $result = ($Payment_report['price'] * $pricecashback) / 100;
-                $Balance_confrim = intval($Balance_id['Balance']) + $result;
-                update("user", "Balance", $Balance_confrim, "id", $Balance_id['id']);
-                $pricecashback = number_format($pricecashback);
-                $text_report = sprintf($textbotlang['paymentGateway']['giftReport'], $result);
-                sendmessage($Balance_id['id'], $text_report, null, 'HTML');
-            }
-            update("Payment_report", "payment_Status", "paid", "id_order", $Payment_report['id_order']);
-            $paymentreports = select("topicid", "idreport", "report", "paymentreport", "select")['idreport'];
-            $price = number_format($price);
-            $text_report = sprintf($textbotlang['paymentGateway']['reportIranpay'], $Payment_report['id_user'], $Balance_id['username'], $price);
-            if (strlen($setting['Channel_Report']) > 0) {
-                telegram('sendmessage', [
-                    'chat_id' => $setting['Channel_Report'],
-                    'message_thread_id' => $paymentreports,
-                    'text' => $text_report,
-                    'parse_mode' => "HTML"
-                ]);
+$textbotlang = languagechange();
+$payload = json_decode(file_get_contents("php://input"), true);
+$payment_status = $textbotlang['paymentGateway']['statusFailed'] ?? 'پرداخت ناموفق بود';
+$dec_payment_status = '';
+$price = 0;
+$invoice_id = '';
+
+if (!is_array($payload) || empty($payload['hashid']) || empty($payload['authority']) || !isset($payload['status'])) {
+    http_response_code(400);
+    $dec_payment_status = 'اطلاعات تراکنش ناقص است.';
+} else {
+    $hashid = htmlspecialchars(trim((string) $payload['hashid']), ENT_QUOTES, 'UTF-8');
+    $authority = trim((string) $payload['authority']);
+    $StatusPayment = $payload['status'];
+    $setting = select("setting", "*");
+    $PaySetting = select("PaySetting", "*", "NamePay", "marchent_floypay", "select")['ValuePay'];
+    $Payment_reports = paymentReportByOrder($hashid);
+    if (!is_array($Payment_reports)) {
+        http_response_code(404);
+        $dec_payment_status = 'سفارش یافت نشد.';
+    } else {
+        $invoice_id = $Payment_reports['id_order'];
+        $price = $Payment_reports['price'];
+        if ((string) $StatusPayment === '100') {
+            $curl = curl_init();
+            $verifyPayload = ["ApiKey" => $PaySetting, "authority" => $authority, "hashid" => $invoice_id];
+            curl_setopt_array($curl, [
+                CURLOPT_URL => "https://tetra98.com/api/verify",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_POSTFIELDS => json_encode($verifyPayload),
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json'],
+            ]);
+            $response = json_decode((string) curl_exec($curl), true);
+            curl_close($curl);
+            if (is_array($response) && !empty($response['status']) && (string) $response['status'] === '100') {
+                $payment_status = $textbotlang['paymentGateway']['statusSuccess'];
+                $dec_payment_status = $textbotlang['paymentGateway']['descThanks'];
+                $Payment_report = paymentReportByOrder($invoice_id);
+                if (is_array($Payment_report) && settleOrderOnce($Payment_report['id_order'])) {
+                    DirectPayment($invoice_id, "../images.jpg");
+                    $cashback = applyPaymentCashback($Payment_report['id_user'], $Payment_report['price'], "chashbackiranpay1");
+                    $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select", ['cache' => false]);
+                    if ($cashback > 0 && is_array($Balance_id)) {
+                        $text_report = sprintf($textbotlang['paymentGateway']['giftReport'], $cashback);
+                        sendmessage($Balance_id['id'], $text_report, null, 'HTML');
+                    }
+                    $paymentreports = topicId('paymentreport');
+                    $text_report = sprintf($textbotlang['paymentGateway']['reportIranpay'], $Payment_report['id_user'], is_array($Balance_id) ? $Balance_id['username'] : '', number_format((float) $price));
+                    if (strlen((string) ($setting['Channel_Report'] ?? '')) > 0) {
+                        telegram('sendmessage', ['chat_id' => $setting['Channel_Report'], 'message_thread_id' => $paymentreports, 'text' => $text_report, 'parse_mode' => "HTML"]);
+                    }
+                }
             }
         }
-    } else {
-        $payment_status = $textbotlang['paymentGateway']['statusFailed'];
-        $dec_payment_status = "";
     }
 }
 ?>

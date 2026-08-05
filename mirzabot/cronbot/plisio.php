@@ -46,18 +46,17 @@ while ($row = ($list_service)->fetch(PDO::FETCH_ASSOC)) {
         update("Payment_report", "payment_Status", "expire", "id_order", $Payment_report['id_order']);
     }
     if (isset($StatusPayment['data']['operations'][0]['status']) && $StatusPayment['data']['operations'][0]['status'] == "completed") {
+        if (!settleOrderOnce($Payment_report['id_order'])) {
+            continue;
+        }
         DirectPayment($Payment_report['id_order'], "../images.jpg");
-        $pricecashback = select("PaySetting", "ValuePay", "NamePay", "chashbackplisio", "select")['ValuePay'];
+        $cashback = applyPaymentCashback($Payment_report['id_user'], $Payment_report['price'], "chashbackplisio");
         $__q18 = $pdo->prepare("SELECT * FROM user WHERE id = ? LIMIT 1");
         $__q18->bindValue(1, $Payment_report['id_user'], PDO::PARAM_STR);
         $__q18->execute();
         $Balance_id = $__q18->fetch(PDO::FETCH_ASSOC);
-        if ($pricecashback != "0") {
-            $result = ($Payment_report['price'] * $pricecashback) / 100;
-            $Balance_confrim = intval($Balance_id['Balance']) + $result;
-            update("user", "Balance", $Balance_confrim, "id", $Balance_id['id']);
-            $pricecashback = number_format($pricecashback);
-            $text_report = sprintf($textbotlang['users']['Balance']['giftDepositPlisio'], $result);
+        if ($cashback > 0 && is_array($Balance_id)) {
+            $text_report = sprintf($textbotlang['users']['Balance']['giftDepositPlisio'], $cashback);
             sendmessage($Balance_id['id'], $text_report, null, 'HTML');
         }
         $text_reportpayment = sprintf($textbotlang['Admin']['reportgroup']['newPaymentPlisio'], $Balance_id['username'], $Balance_id['id'], $Payment_report['price'], $StatusPayment['tx_url'][0], $StatusPayment['invoice_url'], $StatusPayment['invoice_total_sum']);
@@ -69,6 +68,5 @@ while ($row = ($list_service)->fetch(PDO::FETCH_ASSOC)) {
                 'parse_mode' => "HTML"
             ]);
         }
-        update("Payment_report", "payment_Status", "paid", "id_order", $Payment_report['id_order']);
     }
 }
