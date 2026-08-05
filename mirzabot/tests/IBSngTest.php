@@ -192,5 +192,38 @@ namespace Tests {
             $this->assertTrue($result2);
             $this->assertTrue($ibsng->isConnected());
         }
+
+        // --- تست‌های منتقل شده از PR #25 (addUser / deleteUser) ---
+        public function testAddUserDelegatesToProtectedMethod() {
+            $mock = $this->getMockBuilder(IBSng::class)
+                ->disableOriginalConstructor()
+                ->onlyMethods(['_addUser'])
+                ->getMock();
+
+            $mock->expects($this->once())
+                ->method('_addUser')
+                ->with('test_group', 'test_user', 'test_pass', 'test_credit')
+                ->willReturn(true);
+
+            $result = $mock->addUser('test_user', 'test_pass', 'test_group', 'test_credit');
+
+            $this->assertTrue($result);
+        }
+
+        public function testDeleteUserDelegatesToProtectedMethod() {
+            $mock = $this->getMockBuilder(IBSng::class)
+                ->disableOriginalConstructor()
+                ->onlyMethods(['_delUser'])
+                ->getMock();
+
+            $mock->expects($this->once())
+                ->method('_delUser')
+                ->with('test_user')
+                ->willReturn(true);
+
+            $result = $mock->deleteUser('test_user');
+
+            $this->assertTrue($result);
+        }
     }
 }
