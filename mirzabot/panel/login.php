@@ -11,6 +11,7 @@ if (!empty($_SESSION['admin_user'])) {
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  csrf_check_post();
   $username = trim($_POST['username'] ?? '');
   $password = $_POST['password'] ?? '';
   $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
