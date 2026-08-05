@@ -17,80 +17,75 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 
 $ManagePanel = new ManagePanel();
-
-$Authority = htmlspecialchars($_GET['Authority'], ENT_QUOTES, 'UTF-8');
-$StatusPayment = htmlspecialchars($_GET['Status'], ENT_QUOTES, 'UTF-8');
+$textbotlang = languagechange();
+$Authority = isset($_GET['Authority']) ? htmlspecialchars(trim((string) $_GET['Authority']), ENT_QUOTES, 'UTF-8') : '';
+$StatusPayment = isset($_GET['Status']) ? htmlspecialchars(trim((string) $_GET['Status']), ENT_QUOTES, 'UTF-8') : '';
 $setting = select("setting", "*");
-$PaySetting = select("PaySetting", "ValuePay", "NamePay", "merchant_zarinpal","select")['ValuePay'];
-$Payment_reports = select("Payment_report", "*", "dec_not_confirmed", $Authority,"select");
-$price = $Payment_reports['price'];
-$invoice_id = $Payment_reports['id_order'];
-// verify Transaction
-$dec_payment_status = "";
-$payment_status = "";
-if($StatusPayment == "OK"){
-        $curl = curl_init();
+$payment_status = $textbotlang['paymentGateway']['statusFailed'] ?? 'پرداخت ناموفق بود';
+$dec_payment_status = '';
+$price = 0;
+$invoice_id = '';
 
-curl_setopt_array($curl, array(
-  CURLOPT_URL => 'https://api.zarinpal.com/pg/v4/payment/verify.json',
-  CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_ENCODING => '',
-  CURLOPT_MAXREDIRS => 10,
-  CURLOPT_TIMEOUT => 0,
-  CURLOPT_FOLLOWLOCATION => true,
-  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-  CURLOPT_CUSTOMREQUEST => 'POST',
-  CURLOPT_HTTPHEADER => array(
-    'Content-Type: application/json',
-    'Accept: application/json'
-  ),
-));
-curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode([
-  "merchant_id" => $PaySetting,
-  "amount"=> $price,
-  "authority" => $Authority,
-  "description" => $Payment_reports['id_user']
-        ]));
-$response = curl_exec($curl);
-curl_close($curl);
-$response = json_decode($response,true);
-       $payment_status = $textbotlang['paymentGateway']['zarinpalErrors'][$response['errors']['code']];
- if($response['data']['message'] == "Verified" || $response['data']['message'] == "Paid"){
-    $payment_status = $textbotlang['paymentGateway']['statusSuccess'];
-    $dec_payment_status = $textbotlang['paymentGateway']['descThanks'];
-    $Payment_report = select("Payment_report", "*", "id_order", $invoice_id,"select");
-    if($Payment_report['payment_Status'] != "paid"){
-    $textbotlang = languagechange();
-    DirectPayment($invoice_id,"../images.jpg");
-    $pricecashback = select("PaySetting", "ValuePay", "NamePay", "chashbackzarinpal","select")['ValuePay'];
-    $Balance_id = select("user","*","id",$Payment_report['id_user'],"select");
-    if($pricecashback != "0"){
-        $result = ($Payment_report['price'] * $pricecashback) / 100;
-        $Balance_confrim = intval($Balance_id['Balance']) +$result;
-        update("user","Balance",$Balance_confrim, "id",$Balance_id['id']); 
-        $pricecashback =  number_format($pricecashback);
-        $text_report = sprintf($textbotlang['paymentGateway']['giftReport'], $result);
-        sendmessage($Balance_id['id'], $text_report, null, 'HTML');
+if ($Authority === '' || $StatusPayment === '') {
+    http_response_code(400);
+    $dec_payment_status = 'اطلاعات تراکنش ناقص است.';
+} else {
+    $Payment_reports = select("Payment_report", "*", "dec_not_confirmed", $Authority, "select", ['cache' => false]);
+    if (!is_array($Payment_reports)) {
+        http_response_code(404);
+        $dec_payment_status = 'سفارش یافت نشد.';
+    } else {
+        $price = $Payment_reports['price'];
+        $invoice_id = $Payment_reports['id_order'];
+        if ($StatusPayment === "OK") {
+            $PaySetting = select("PaySetting", "ValuePay", "NamePay", "merchant_zarinpal", "select")['ValuePay'];
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => 'https://payment.zarinpal.com/pg/v4/payment/verify.json',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => '',
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json'],
+                CURLOPT_POSTFIELDS => json_encode([
+                    "merchant_id" => $PaySetting,
+                    "amount" => $price,
+                    "authority" => $Authority,
+                    "description" => $Payment_reports['id_user']
+                ]),
+            ]);
+            $response = curl_exec($curl);
+            curl_close($curl);
+            $response = json_decode((string) $response, true);
+            $code = $response['data']['code'] ?? $response['errors']['code'] ?? null;
+            if (($response['data']['message'] ?? '') === "Verified" || ($response['data']['message'] ?? '') === "Paid" || in_array((int) $code, [100, 101], true)) {
+                $payment_status = $textbotlang['paymentGateway']['statusSuccess'];
+                $dec_payment_status = $textbotlang['paymentGateway']['descThanks'];
+                $Payment_report = paymentReportByOrder($invoice_id);
+                if (is_array($Payment_report) && settleOrderOnce($Payment_report['id_order'])) {
+                    DirectPayment($invoice_id, "../images.jpg");
+                    $cashback = applyPaymentCashback($Payment_report['id_user'], $Payment_report['price'], "chashbackzarinpal");
+                    $Balance_id = select("user", "*", "id", $Payment_report['id_user'], "select", ['cache' => false]);
+                    if ($cashback > 0 && is_array($Balance_id)) {
+                        $text_report = sprintf($textbotlang['paymentGateway']['giftReport'], $cashback);
+                        sendmessage($Balance_id['id'], $text_report, null, 'HTML');
+                    }
+                    $paymentreports = topicId('paymentreport');
+                    $refcode = $response['data']['ref_id'] ?? '';
+                    $cart_number = $response['data']['card_pan'] ?? '';
+                    $text_report = sprintf($textbotlang['paymentGateway']['reportZarinpal'], $Payment_report['id_user'], is_array($Balance_id) ? $Balance_id['username'] : '', number_format((float) $price), $refcode, $cart_number);
+                    if (strlen((string) ($setting['Channel_Report'] ?? '')) > 0) {
+                        telegram('sendmessage', ['chat_id' => $setting['Channel_Report'], 'message_thread_id' => $paymentreports, 'text' => $text_report, 'parse_mode' => "HTML"]);
+                    }
+                }
+            } else {
+                $payment_status = $textbotlang['paymentGateway']['zarinpalResultCodes'][$code] ?? $textbotlang['paymentGateway']['statusFailed'];
+            }
+        }
     }
-    update("Payment_report","payment_Status","paid","id_order",$Payment_report['id_order']);
-    $paymentreports = select("topicid","idreport","report","paymentreport","select")['idreport'];
-    $refcode = $response['data']['ref_id'];
-    $cart_number = $response['data']['card_pan'];
-    $price = number_format($price);
-$text_report = sprintf($textbotlang['paymentGateway']['reportZarinpal'], $Payment_report['id_user'], $Balance_id['username'], $price, $refcode, $cart_number);
-    if (strlen($setting['Channel_Report']) > 0) {
-        telegram('sendmessage',[
-        'chat_id' => $setting['Channel_Report'],
-        'message_thread_id' => $paymentreports,
-        'text' => $text_report,
-        'parse_mode' => "HTML"
-        ]);
-    }
-}
-}else {
-        $payment_status = $textbotlang['paymentGateway']['zarinpalResultCodes'][$response['errors']['code']];
-     $dec_payment_status = "";
-}
 }
 ?>
 <html>

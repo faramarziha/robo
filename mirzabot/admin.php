@@ -6590,12 +6590,36 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     step("home", $from_id);
 } elseif (preg_match('/rejectrequesta_(\w+)/', $datain, $datagetr)) {
     $id_user = $datagetr[1];
-    $request_agent = select("Requestagent", "*", "id", $id_user, "select");
-    update("Requestagent", "status", "reject", "id", $id_user);
-    $userinfo = select("user", "*", "id", $id_user, "select");
-    $Balancenew = $userinfo['Balance'] + intval($setting['agentreqprice']);
-    update("user", "Balance", $Balancenew, "id", $id_user);
-    if ($request_agent['status'] == "reject" || $request_agent['status'] == "accept") {
+    $request_agent = select("Requestagent", "*", "id", $id_user, "select", ['cache' => false]);
+    if (!$request_agent || $request_agent['status'] == "reject" || $request_agent['status'] == "accept") {
+        telegram('answerCallbackQuery', array(
+            'callback_query_id' => $callback_query_id,
+            'text' => $textbotlang['keyboard']['alreadyReviewed'],
+            'show_alert' => true,
+            'cache_time' => 5,
+        ));
+        return;
+    }
+
+    // Atomic claim + refund: reject and accept buttons can be pressed by two
+    // admins at nearly the same time. Only the first status transition may
+    // win, and the agent request fee must be refunded at most once.
+    try {
+        withTransaction(function () use ($pdo, $id_user, $setting) {
+            $stmt = $pdo->prepare(
+                "UPDATE Requestagent
+                 SET status = 'reject'
+                 WHERE id = :id AND status NOT IN ('reject', 'accept')"
+            );
+            $stmt->bindValue(':id', $id_user, PDO::PARAM_STR);
+            $stmt->execute();
+            if ($stmt->rowCount() !== 1) {
+                throw new RuntimeException('Agent request was already reviewed');
+            }
+            creditBalance((int) $id_user, (int) ($setting['agentreqprice'] ?? 0));
+        });
+    } catch (Throwable $e) {
+        error_log('admin.php reject agent request failed: ' . $e->getMessage());
         telegram('answerCallbackQuery', array(
             'callback_query_id' => $callback_query_id,
             'text' => $textbotlang['keyboard']['alreadyReviewed'],
@@ -6639,10 +6663,32 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
         'n' => $textbotlang['keyboard']['normalAgent'],
         'n2' => $textbotlang['keyboard']['advancedAgent'],
     ];
-    update("Requestagent", "status", "accept", "id", $id_user);
-    update("Requestagent", "type", $defaultAgentType, "id", $id_user);
-    update("user", "agent", $defaultAgentType, "id", $id_user);
-    update("user", "expire", null, "id", $id_user);
+    try {
+        withTransaction(function () use ($pdo, $id_user, $defaultAgentType) {
+            $stmt = $pdo->prepare(
+                "UPDATE Requestagent
+                 SET status = 'accept', type = :type
+                 WHERE id = :id AND status NOT IN ('reject', 'accept')"
+            );
+            $stmt->bindValue(':type', $defaultAgentType, PDO::PARAM_STR);
+            $stmt->bindValue(':id', $id_user, PDO::PARAM_STR);
+            $stmt->execute();
+            if ($stmt->rowCount() !== 1) {
+                throw new RuntimeException('Agent request was already reviewed');
+            }
+            update("user", "agent", $defaultAgentType, "id", $id_user);
+            update("user", "expire", null, "id", $id_user);
+        });
+    } catch (Throwable $e) {
+        error_log('admin.php accept agent request failed: ' . $e->getMessage());
+        telegram('answerCallbackQuery', array(
+            'callback_query_id' => $callback_query_id,
+            'text' => $textbotlang['keyboard']['alreadyReviewed'],
+            'show_alert' => true,
+            'cache_time' => 5,
+        ));
+        return;
+    }
     sendmessage($id_user, $textbotlang['users']['agent']['requestApproved'], null, 'HTML');
     sendmessage($from_id, $textbotlang['Admin']['agent']['userAgented'], $keyboardadmin, 'HTML');
     $agentTypeButtons = [];
