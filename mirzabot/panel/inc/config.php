@@ -66,7 +66,7 @@ function csrf_check_post(): void
     $token = $_POST['_csrf'] ?? '';
     if (!hash_equals($_SESSION['csrf'] ?? '', $token)) {
         http_response_code(403);
-        die($textbotlang['panel']['configInvalidRequest']);
+        throw new Exception($textbotlang['panel']['configInvalidRequest']);
     }
 }
 
@@ -76,7 +76,7 @@ function csrf_check_get(): void
     $token = $_GET['_csrf'] ?? '';
     if (!hash_equals($_SESSION['csrf'] ?? '', $token)) {
         http_response_code(403);
-        die($textbotlang['panel']['configInvalidRequest']);
+        throw new Exception($textbotlang['panel']['configInvalidRequest']);
     }
 }
 

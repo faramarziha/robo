@@ -21,7 +21,7 @@ $ManagePanel = new ManagePanel();
 
 $text_bot_var = json_decode(file_get_contents('text.json'), true);
 if (!checktelegramip())
-    die("Unauthorized access");
+    throw new Exception("Unauthorized access");
 
 $textbotlang = languagechange();
 $dataBase = select("botsaz", "*", "bot_token", $ApiToken, "select");
