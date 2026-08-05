@@ -1,0 +1,10 @@
+🎯 **What:** Replaced the debug `var_dump(curl_error($ch));` with `error_log('Telegram request failed: ' . curl_error($ch));` in `mirzabot/vpnbot/Default/botapi.php`.
+
+💡 **Why:** Debug statements like `var_dump` should not be left in production code. Replacing it with proper logging using `error_log` enhances code maintainability without dumping unhandled errors to the standard output / API response, while also standardizing the logging method across similar API call handling files.
+
+✅ **Verification:**
+- Syntactic check via `php -l mirzabot/vpnbot/Default/botapi.php` passed.
+- Checked other debug output methods in the directory for consistency and found no other debug statements to clean up.
+- All tests executed and passed (`bash mirzabot/run_tests.sh`).
+
+✨ **Result:** Cleaned up debugging outputs in production code, improving the overall reliability and logs hygiene.
