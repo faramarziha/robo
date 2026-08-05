@@ -1,5 +1,5 @@
 <?php
-include('config.php');
+if(!defined('TESTING')) include('config.php');
 ini_set('error_log', 'error_log');
 
 
