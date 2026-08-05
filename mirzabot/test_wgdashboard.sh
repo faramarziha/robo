@@ -180,6 +180,112 @@ else
     bad "restrictPeers test failed"
 fi
 
+# --- Test 3: remove_userwg (PR #16) ---
+cat << 'PHP' > test_remove_userwg.php
+<?php
+$mock_select_calls = [];
+function select($table, $col, $where_col, $where_val, $type) {
+    global $mock_select_calls;
+    $mock_select_calls[] = func_get_args();
+    if ($table === 'marzban_panel') {
+        return [
+            'url_panel' => 'http://wg.example.com',
+            'inboundid' => 'wg0',
+            'password_panel' => 'secret_api_key'
+        ];
+    }
+    if ($table === 'invoice') {
+        return [
+            'user_info' => json_encode(['public_key' => 'pub_key_12345'])
+        ];
+    }
+    return false;
+}
+
+$mock_allowAccessPeers_calls = [];
+function allowAccessPeers($location, $username) {
+    global $mock_allowAccessPeers_calls;
+    $mock_allowAccessPeers_calls[] = func_get_args();
+    return true;
+}
+
+class CurlRequest16 {
+    public $url;
+    public $headers;
+    public $postData;
+    public static $lastInstance = null;
+
+    public function __construct($url) {
+        $this->url = $url;
+        self::$lastInstance = $this;
+    }
+
+    public function setHeaders($headers) {
+        $this->headers = $headers;
+    }
+
+    public function post($data) {
+        $this->postData = $data;
+        return '{"status": "success"}';
+    }
+}
+
+$code = file_get_contents('WGDashboard.php');
+preg_match('/function remove_userwg\([^)]*\)\s*\{.*?\n\}\s*\n(?:function|\Z)/s', $code, $matches);
+if (!empty($matches)) {
+    $func_code = preg_replace('/function\Z/', '', $matches[0]);
+    eval($func_code);
+} else {
+    preg_match('/function remove_userwg[^{]*{(?:[^{}]*|{(?:[^{}]*|{[^{}]*})*})*}/s', $code, $matches);
+    eval($matches[0]);
+}
+
+$res = remove_userwg('test_loc', 'test_user');
+$errors = [];
+
+if (count($mock_allowAccessPeers_calls) !== 1 || $mock_allowAccessPeers_calls[0] !== ['test_loc', 'test_user']) {
+    $errors[] = "allowAccessPeers not called correctly.";
+}
+
+$curl = CurlRequest16::$lastInstance;
+if (!$curl) {
+    $errors[] = "CurlRequest not instantiated.";
+} else {
+    if ($curl->url !== 'http://wg.example.com/api/deletePeers/wg0') {
+        $errors[] = "Incorrect URL: " . $curl->url;
+    }
+    if (!in_array('wg-dashboard-apikey: secret_api_key', $curl->headers)) {
+        $errors[] = "API key header missing.";
+    }
+    $postDecoded = json_decode($curl->postData, true);
+    if (!isset($postDecoded['peers'][0]) || $postDecoded['peers'][0] !== 'pub_key_12345') {
+        $errors[] = "Post data incorrect: " . $curl->postData;
+    }
+}
+
+if ($res !== '{"status": "success"}') {
+    $errors[] = "Response incorrect: " . $res;
+}
+
+if (empty($errors)) {
+    exit(0);
+} else {
+    echo implode("\n", $errors) . "\n";
+    exit(1);
+}
+PHP
+
+out16=$(php test_remove_userwg.php 2>&1)
+rc16=$?
+rm -f test_remove_userwg.php
+
+if [ "$rc16" -eq 0 ]; then
+    ok "remove_userwg test passed"
+else
+    bad "remove_userwg test failed"
+    echo "$out16"
+fi
+
 echo ""
 echo "── $pass passed, $fail failed ──"
 [ "$fail" -eq 0 ]
