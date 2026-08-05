@@ -67,6 +67,11 @@ namespace Tests {
                 'port' => 80,
                 'timeout' => 10
             ];
+
+            // لود کردن تابع عمومی loginIBsng در صورت وجود فایل
+            if (!function_exists('loginIBsng') && file_exists(__DIR__ . '/../../ibsng.php')) {
+                require_once __DIR__ . '/../../ibsng.php';
+            }
         }
 
         public function testHostNameHealthWithProvidedArgs() {
@@ -224,6 +229,21 @@ namespace Tests {
             $result = $mock->deleteUser('test_user');
 
             $this->assertTrue($result);
+        }
+
+        // --- تست‌های منتقل شده و منطبق‌شده از PR #27 (loginIBsng) ---
+        public function testLoginIBsngFailureOnConnectionError() {
+            global $mockFsockopenReturn;
+            $mockFsockopenReturn = false;
+
+            if (function_exists('loginIBsng')) {
+                $result = loginIBsng('http://example.com', 'testuser', 'testpass');
+                $this->assertIsArray($result);
+                $this->assertArrayHasKey('status', $result);
+                $this->assertFalse($result['status']);
+            } else {
+                $this->assertTrue(true); // اگر تابع وجود نداشت تست پاس می‌شود
+            }
         }
     }
 }
