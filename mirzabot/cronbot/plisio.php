@@ -13,7 +13,7 @@ $paymentreports = select("topicid", "idreport", "report", "paymentreport", "sele
 function statusplisio($tx_id)
 {
     global $pdo;
-    $apinowpayments = ($pdo->query("SELECT (ValuePay) FROM PaySetting WHERE NamePay = 'apinowpayment'"))->fetch(PDO::FETCH_ASSOC)['ValuePay'];
+    $apinowpayments = select("PaySetting", "ValuePay", "NamePay", "apinowpayment", "select")['ValuePay'];
     $api_key = $apinowpayments;
     $url = 'https://api.plisio.net/api/v1/operations?';
     $url .= '&api_key=' . urlencode($api_key);

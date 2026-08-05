@@ -198,7 +198,8 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     $statistics = select("user", "*", null, null, "count");
     $sumpanel = select("marzban_panel", "*", null, null, "count");
     $sql1 = "SELECT COUNT(id) AS count FROM user WHERE agent != 'f'";
-    $stmt1 = $pdo->query($sql1);
+    $stmt1 = $pdo->prepare($sql1);
+    $stmt1->execute();
     $agentsum = $stmt1->fetch(PDO::FETCH_ASSOC)['count'];
     $agentsumn = select("user", "COUNT(id)", "agent", "n", "select")['COUNT(id)'];
     $agentsumn2 = select("user", "COUNT(id)", "agent", "n2", "select")['COUNT(id)'];
@@ -225,7 +226,8 @@ if (in_array($text, $textadmin) || $datain == "admin") {
     $invoiceTotal = isset($invoiceSumRow['total_price']) ? (float) $invoiceSumRow['total_price'] : 0;
     $invoicesumall = number_format($invoiceTotal, 0);
     $sql3 = "SELECT SUM(price) AS total_extend FROM service_other WHERE type = 'extend_user'";
-    $stmt3 = $pdo->query($sql3);
+    $stmt3 = $pdo->prepare($sql3);
+    $stmt3->execute();
     $extendSumRow = $stmt3->fetch(PDO::FETCH_ASSOC);
     $extendsum = isset($extendSumRow['total_extend']) ? (float) $extendSumRow['total_extend'] : 0;
     $count_usertest = select("invoice", "*", "name_product", $textbotlang['common']['labels']['testServiceName'], "count");
@@ -5980,7 +5982,8 @@ elseif ($datain == "systemsms") {
     $sheet = $spreadsheet->getActiveSheet();
 
     $sql = "SELECT * FROM user";
-    $result = $pdo->query($sql);
+    $result = $pdo->prepare($sql);
+    $result->execute();
 
     $col = 1;
     $headers = array_keys($result->fetch(PDO::FETCH_ASSOC));
@@ -6014,7 +6017,8 @@ elseif ($datain == "systemsms") {
     $sheet = $spreadsheet->getActiveSheet();
 
     $sql = "SELECT * FROM invoice";
-    $result = $pdo->query($sql);
+    $result = $pdo->prepare($sql);
+    $result->execute();
 
     $col = 1;
     $headers = array_keys($result->fetch(PDO::FETCH_ASSOC));
@@ -6048,7 +6052,8 @@ elseif ($datain == "systemsms") {
     $sheet = $spreadsheet->getActiveSheet();
 
     $sql = "SELECT * FROM Payment_report";
-    $result = $pdo->query($sql);
+    $result = $pdo->prepare($sql);
+    $result->execute();
 
     $col = 1;
     $headers = array_keys($result->fetch(PDO::FETCH_ASSOC));
