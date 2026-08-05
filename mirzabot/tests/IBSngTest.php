@@ -85,5 +85,32 @@ namespace Tests {
             $this->assertEquals('default.host', $mockFsockopenArgs['hostname']);
             $this->assertEquals(8080, $mockFsockopenArgs['port']);
         }
+
+        // --- تست منتقل شده از PR #20 ---
+        public function testListUser() {
+            $loginData = [
+                'username' => 'test_user',
+                'password' => 'test_pass',
+                'hostname' => 'http://localhost',
+                'port' => 80,
+                'timeout' => 10
+            ];
+
+            // Mock fetchAllUsers method
+            $mock = $this->getMockBuilder(IBSng::class)
+                         ->setConstructorArgs([$loginData])
+                         ->onlyMethods(['fetchAllUsers'])
+                         ->getMock();
+
+            // Expect fetchAllUsers to be called once with arguments 1 and 100
+            $mock->expects($this->once())
+                 ->method('fetchAllUsers')
+                 ->with(1, 100)
+                 ->willReturn(['user1', 'user2']);
+
+            // Call listUser and assert the result
+            $result = $mock->listUser();
+            $this->assertEquals(['user1', 'user2'], $result);
+        }
     }
 }
