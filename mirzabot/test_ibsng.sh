@@ -4,7 +4,7 @@
 cd "$(dirname "$0")" || { echo "Failed to change directory"; }
 
 # Setup a test file
-cat << 'PHP' > test_ibsng.php
+cat << 'PHP' > test_ibsng_disconnect_tmp.php
 <?php
 
 // We will mock unlink and curl_close in the namespace radiusApi\Modules
