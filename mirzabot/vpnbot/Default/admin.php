@@ -424,11 +424,13 @@ if ($text == "📞 تنظیم نام کاربری پشتیبانی") {
     $stmt = $pdo->prepare("SELECT * FROM invoice WHERE name_product = 'سرویس تست' AND bottype = :mp2");
     $stmt->execute([':mp2' => $ApiToken]);
     $count_usertest = $stmt->rowCount();
-    $sql1 = "SELECT COUNT(*) AS invoice_count FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست' AND bottype = '$ApiToken'";
-    $stmt1 = $pdo->query($sql1);
+    $sql1 = "SELECT COUNT(*) AS invoice_count FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست' AND bottype = :bottype";
+    $stmt1 = $pdo->prepare($sql1);
+    $stmt1->execute([':bottype' => $ApiToken]);
     $invoice = $stmt1->fetch(PDO::FETCH_ASSOC)['invoice_count'];
-    $sql2 = "SELECT SUM(price_product) AS total_price FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست' AND bottype = '$ApiToken'";
-    $stmt2 = $pdo->query($sql2);
+    $sql2 = "SELECT SUM(price_product) AS total_price FROM invoice WHERE (status = 'active' OR status = 'end_of_time' OR status = 'end_of_volume' OR status = 'sendedwarn' OR status = 'send_on_hold') AND name_product != 'سرویس تست' AND bottype = :bottype";
+    $stmt2 = $pdo->prepare($sql2);
+    $stmt2->execute([':bottype' => $ApiToken]);
     $invoicesum = number_format($stmt2->fetch(PDO::FETCH_ASSOC)['total_price'], 0);
     $statisticsall = "
 📊 آمار کلی ربات  

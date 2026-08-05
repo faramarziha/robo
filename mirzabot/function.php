@@ -194,7 +194,8 @@ function ensureCardNumberTableSupportsUnicode()
 
         ensureTableUtf8mb4('card_number');
 
-        $columnInfo = $pdo->query("SHOW FULL COLUMNS FROM card_number WHERE Field IN ('cardnumber', 'namecard')");
+        $columnInfo = $pdo->prepare("SHOW FULL COLUMNS FROM card_number WHERE Field IN ('cardnumber', 'namecard')");
+        $columnInfo->execute();
         if ($columnInfo instanceof PDOStatement) {
             while ($column = $columnInfo->fetch(PDO::FETCH_ASSOC)) {
                 $collation = $column['Collation'] ?? '';
@@ -1338,7 +1339,10 @@ function addFieldToTable($tableName, $fieldName, $defaultValue = null, $datatype
     if ($tableExists['count'] == 0)
         return;
     $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?");
-    $stmt->execute([$pdo->query("SELECT DATABASE()")->fetchColumn(), $tableName, $fieldName]);
+    $dbStmt = $pdo->prepare("SELECT DATABASE()");
+    $dbStmt->execute();
+    $dbName = $dbStmt->fetchColumn();
+    $stmt->execute([$dbName, $tableName, $fieldName]);
     $filedExists = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($filedExists['count'] != 0)
         return;
