@@ -98,9 +98,9 @@ namespace {
 PHP
 
 # Now run the test and capture exit code
-php test_ibsng.php
+php test_ibsng_disconnect_tmp.php
 EXIT_CODE=$?
-rm test_ibsng.php
+rm test_ibsng_disconnect_tmp.php
 
 # We cannot use exit keyword directly in this environment, but returning the correct code works
 (exit $EXIT_CODE)
