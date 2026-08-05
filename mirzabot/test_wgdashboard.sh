@@ -286,6 +286,18 @@ else
     echo "$out16"
 fi
 
+# --- Test 4: downloadconfig (PR #17) ---
+if [ -f "tests/test_downloadconfig.php" ]; then
+    out17=$(php tests/test_downloadconfig.php 2>&1)
+    rc17=$?
+    if [ "$rc17" -eq 0 ]; then
+        ok "downloadconfig test passed"
+    else
+        bad "downloadconfig test failed"
+        echo "$out17"
+    fi
+fi
+
 echo ""
 echo "── $pass passed, $fail failed ──"
 [ "$fail" -eq 0 ]
