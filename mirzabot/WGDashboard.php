@@ -1,5 +1,5 @@
 <?php
-include('config.php');
+if(!defined('TESTING')) include('config.php');
 ini_set('error_log', 'error_log');
 
 
@@ -158,7 +158,7 @@ function updatepear($namepanel, array $config)
     );
     $req = new CurlRequest($url);
     $req->setHeaders($headers);
-    $response = $req->post($config);
+    $response = $req->post($configpanel);
     return $response;
 }
 function deletejob($namepanel, array $config)
@@ -242,27 +242,25 @@ function restrictPeers($location, $username)
 
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
     $data_user = json_decode(select("invoice", "user_info", "username", $username, "select")['user_info'], true)['public_key'];
-    $curl = curl_init();
-    curl_setopt_array($curl, array(
-        CURLOPT_URL => $marzban_list_get['url_panel'] . '/api/restrictPeers/' . $marzban_list_get['inboundid'],
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_COOKIEFILE => 'cookiewg.txt',
-        CURLOPT_POSTFIELDS => json_encode(array(
-            "peers" => array(
-                $data_user
-            )
-        )),
-        CURLOPT_HTTPHEADER => array(
-            'Content-Type: application/json',
-            'wg-dashboard-apikey: ' . $marzban_list_get['password_panel']
-        ),
-    ));
-    $response = json_decode(curl_exec($curl), true);
+
+    $url = $marzban_list_get['url_panel'] . '/api/restrictPeers/' . $marzban_list_get['inboundid'];
+    $headers = array(
+        'Content-Type: application/json',
+        'wg-dashboard-apikey: ' . $marzban_list_get['password_panel']
+    );
+
+    $req = new CurlRequest($url);
+    $req->setHeaders($headers);
+    $req->setCookie('cookiewg.txt');
+
+    $response = $req->post(json_encode(array(
+        "peers" => array(
+            $data_user
+        )
+    )));
+
+    if (isset($response['body']) && is_string($response['body'])) {
+        return json_decode($response['body'], true);
+    }
     return $response;
 }

@@ -5,6 +5,13 @@ require_auth();
 
 $keyboard = json_decode(file_get_contents("php://input"), true);
 $method = $_SERVER['REQUEST_METHOD'];
+if ($method == "POST") {
+    $csrf = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_GET['_csrf'] ?? '');
+    if (!hash_equals($_SESSION['csrf'] ?? '', (string) $csrf)) {
+        http_response_code(403);
+        die($textbotlang['panel']['configInvalidRequest']);
+    }
+}
 if ($method == "POST" && is_array($keyboard)) {
     $keyboardmain = ['keyboard' => []];
     $keyboardmain['keyboard'] = $keyboard;
@@ -13,6 +20,7 @@ if ($method == "POST" && is_array($keyboard)) {
     $keyboardmain = '{"keyboard":[[{"text":"text_sell"},{"text":"text_extend"}],[{"text":"text_usertest"},{"text":"text_wheel_luck"}],[{"text":"text_Purchased_services"},{"text":"accountwallet"}],[{"text":"text_affiliates"},{"text":"text_Tariff_list"}],[{"text":"text_support"},{"text":"text_help"}]]}';
     $action = filter_input(INPUT_GET, 'action');
     if ($action === "reaset") {
+        csrf_check_get();
         update("setting", "keyboardmain", $keyboardmain, null, null);
         header('Location: keyboard.php');
         exit;
@@ -28,6 +36,7 @@ if ($method == "POST" && is_array($keyboard)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title><?= $textbotlang['panel']['keyboardManageTitle'] ?></title>
 
+    <script>window.__PANEL_CSRF__ = <?= json_encode(csrf_token()) ?>;(function(){var open=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(method,url){this.__sameOrigin=url;return open.apply(this,arguments)};var send=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.send=function(){try{var u=new URL(this.__sameOrigin, window.location.href);if(u.origin===window.location.origin){this.setRequestHeader("X-CSRF-Token", window.__PANEL_CSRF__ || "")}}catch(e){}return send.apply(this,arguments)}})();</script>
     <script type="module" crossorigin src="js/sort_keyboard.js"></script>
     <link rel="stylesheet" crossorigin href="css/sort_keyboard.css">
     <style>
@@ -72,7 +81,7 @@ if ($method == "POST" && is_array($keyboard)) {
 
 <body>
     <a class="btnback" href="index.php"><?= $textbotlang['panel']['keyboardSortHint'] ?></a>
-    <a class="btndefult" href="keyboard.php?action=reaset"><?= $textbotlang['panel']['keyboardSaveBtn'] ?></a>
+    <a class="btndefult" href="keyboard.php?action=reaset&_csrf=<?= urlencode(csrf_token()) ?>"><?= $textbotlang['panel']['keyboardSaveBtn'] ?></a>
     <div id="root"></div>
 </body>
 
