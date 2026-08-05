@@ -17,18 +17,32 @@ use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 
 $ManagePanel = new ManagePanel();
+$textbotlang = languagechange();
 
-$invoice_id = htmlspecialchars($_POST['invoice_id'], ENT_QUOTES, 'UTF-8');
+$invoice_id = isset($_POST['invoice_id']) ? htmlspecialchars(trim((string) $_POST['invoice_id']), ENT_QUOTES, 'UTF-8') : '';
+$transid = isset($_POST['transid']) ? trim((string) $_POST['transid']) : '';
+if ($invoice_id === '' || $transid === '') {
+    http_response_code(400);
+    $payment_status = $textbotlang['paymentGateway']['statusFailed'] ?? 'پرداخت ناموفق بود';
+    $dec_payment_status = 'اطلاعات تراکنش ناقص است.';
+    $price = 0;
+} else {
 $setting = select("setting", "*");
 $PaySetting = select("PaySetting", "ValuePay", "NamePay", "merchant_id_aqayepardakht","select")['ValuePay'];
-$Payment_report = select("Payment_report", "price", "id_order", $invoice_id,"select")['price'];
-$price = $Payment_report;
+$Payment_report = paymentReportByOrder($invoice_id);
+if (!is_array($Payment_report)) {
+    http_response_code(404);
+    $payment_status = $textbotlang['paymentGateway']['statusFailed'] ?? 'پرداخت ناموفق بود';
+    $dec_payment_status = 'سفارش یافت نشد.';
+    $price = 0;
+} else {
+$price = $Payment_report['price'];
 // verify Transaction
 
 $data = [
 'pin'    => $PaySetting,
-'amount'    => $Payment_report,
-'transid' => $_POST['transid'],
+'amount'    => $Payment_report['price'],
+'transid' => $transid,
 ];
 $data = json_encode($data);
 $ch = curl_init('https://panel.aqayepardakht.ir/api/v2/verify');
@@ -44,31 +58,25 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, array(
 $result = curl_exec($ch);
 curl_close($ch);
 $result = json_decode($result);
-if ($result->code == "1") {
+if (is_object($result) && ($result->code ?? null) == "1") {
     $payment_status = $textbotlang['paymentGateway']['statusSuccess'];
-    $price = $Payment_report;
+    $price = $Payment_report['price'];
     $dec_payment_status = $textbotlang['paymentGateway']['descThanks'];
-    $Payment_report = select("Payment_report", "*", "id_order", $invoice_id,"select");
-    if($Payment_report['payment_Status'] != "paid"){
-    $textbotlang = languagechange();
+    $Payment_report = paymentReportByOrder($invoice_id);
+    if(is_array($Payment_report) && settleOrderOnce($Payment_report['id_order'])){
     DirectPayment($invoice_id,"../images.jpg");
-    $pricecashback = select("PaySetting", "ValuePay", "NamePay", "chashbackaqaypardokht","select")['ValuePay'];
+    $cashback = applyPaymentCashback($Payment_report['id_user'], $Payment_report['price'], "chashbackaqaypardokht");
     $__q16 = $pdo->prepare("SELECT * FROM user WHERE id = ? LIMIT 1");
     $__q16->bindValue(1, $Payment_report['id_user'], PDO::PARAM_STR);
     $__q16->execute();
     $Balance_id = $__q16->fetch(PDO::FETCH_ASSOC);
-    if($pricecashback != "0"){
-        $result = ($Payment_report['price'] * $pricecashback) / 100;
-        $Balance_confrim = intval($Balance_id['Balance']) +$result;
-        update("user","Balance",$Balance_confrim, "id",$Balance_id['id']); 
-        $pricecashback =  number_format($pricecashback);
-        $text_report = sprintf($textbotlang['paymentGateway']['giftReport'], $result);
+    if($cashback > 0 && is_array($Balance_id)){
+        $text_report = sprintf($textbotlang['paymentGateway']['giftReport'], $cashback);
         sendmessage($Balance_id['id'], $text_report, null, 'HTML');
     }
-    update("Payment_report","payment_Status","paid","id_order",$Payment_report['id_order']);
     $paymentreports = select("topicid","idreport","report","paymentreport","select")['idreport'];
 
-$text_report = sprintf($textbotlang['paymentGateway']['reportAqayepardakht'], $Payment_report['id_user'], $Balance_id['username'], $price);
+$text_report = sprintf($textbotlang['paymentGateway']['reportAqayepardakht'], $Payment_report['id_user'], is_array($Balance_id) ? $Balance_id['username'] : '', $price);
     if (strlen($setting['Channel_Report']) > 0) {
         telegram('sendmessage',[
         'chat_id' => $setting['Channel_Report'],
@@ -79,8 +87,10 @@ $text_report = sprintf($textbotlang['paymentGateway']['reportAqayepardakht'], $P
     }
 }
 }else {
-        $payment_status = $textbotlang['paymentGateway']['zarinpalResultCodes'][$result->code];
+        $payment_status = $textbotlang['paymentGateway']['zarinpalResultCodes'][$result->code ?? ''] ?? ($textbotlang['paymentGateway']['statusFailed'] ?? 'پرداخت ناموفق بود');
      $dec_payment_status = "";
+}
+}
 }
 ?>
 <html>
