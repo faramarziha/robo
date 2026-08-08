@@ -409,18 +409,29 @@ if ($user['joinchannel'] != "active") {
             $keyboardchannel = [
                 'inline_keyboard' => [],
             ];
-            foreach ($channels as $channel) {
-                $channelremark = select("channels", "*", 'link', $channel, "select");
-                if ($channelremark['remark'] == null)
-                    continue;
-                if ($channelremark['linkjoin'] == null)
-                    continue;
-                $keyboardchannel['inline_keyboard'][] = [
-                    [
-                        'text' => "{$channelremark['remark']}",
-                        'url' => $channelremark['linkjoin']
-                    ],
-                ];
+            // Channels N+1
+            if (!empty($channels)) {
+                $placeholders = rtrim(str_repeat('?,', count($channels)), ',');
+                $stmt = $pdo->prepare("SELECT * FROM channels WHERE link IN ($placeholders)");
+                $stmt->execute($channels);
+                $channel_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                $channel_map = [];
+                foreach ($channel_rows as $row) {
+                    $channel_map[$row['link']] = $row;
+                }
+                
+                foreach ($channels as $channel) {
+                    $channelremark = $channel_map[$channel] ?? null;
+                    if (!$channelremark || $channelremark['remark'] == null || $channelremark['linkjoin'] == null)
+                        continue;
+                    $keyboardchannel['inline_keyboard'][] = [
+                        [
+                            'text' => "{$channelremark['remark']}",
+                            'url' => $channelremark['linkjoin']
+                        ],
+                    ];
+                }
             }
             $keyboardchannel['inline_keyboard'][] = [['text' => $textbotlang['users']['channel']['confirmjoin'], 'callback_data' => "confirmchannel"]];
             $keyboardchannel = json_encode($keyboardchannel);
@@ -463,18 +474,29 @@ if ($user['joinchannel'] != "active") {
             $keyboardchannel = [
                 'inline_keyboard' => [],
             ];
-            foreach ($channels as $channel) {
-                $channelremark = select("channels", "*", 'link', $channel, "select");
-                if ($channelremark['remark'] == null)
-                    continue;
-                if ($channelremark['linkjoin'] == null)
-                    continue;
-                $keyboardchannel['inline_keyboard'][] = [
-                    [
-                        'text' => "{$channelremark['remark']}",
-                        'url' => $channelremark['linkjoin']
-                    ],
-                ];
+            // Channels N+1
+            if (!empty($channels)) {
+                $placeholders = rtrim(str_repeat('?,', count($channels)), ',');
+                $stmt = $pdo->prepare("SELECT * FROM channels WHERE link IN ($placeholders)");
+                $stmt->execute($channels);
+                $channel_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                $channel_map = [];
+                foreach ($channel_rows as $row) {
+                    $channel_map[$row['link']] = $row;
+                }
+                
+                foreach ($channels as $channel) {
+                    $channelremark = $channel_map[$channel] ?? null;
+                    if (!$channelremark || $channelremark['remark'] == null || $channelremark['linkjoin'] == null)
+                        continue;
+                    $keyboardchannel['inline_keyboard'][] = [
+                        [
+                            'text' => "{$channelremark['remark']}",
+                            'url' => $channelremark['linkjoin']
+                        ],
+                    ];
+                }
             }
             $keyboardchannel['inline_keyboard'][] = [['text' => $textbotlang['users']['channel']['confirmjoin'], 'callback_data' => "confirmchannel"]];
             $keyboardchannel = json_encode($keyboardchannel);
