@@ -23,6 +23,7 @@ if (!empty($webhook_secret)) {
 require_once 'botapi.php';
 require_once 'jdf.php';
 require_once 'function.php';
+require_once __DIR__ . '/cronbot/channel_keyboard.php';
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
 require_once 'panels.php';
@@ -409,19 +410,8 @@ if ($user['joinchannel'] != "active") {
             $keyboardchannel = [
                 'inline_keyboard' => [],
             ];
-            foreach ($channels as $channel) {
-                $channelremark = select("channels", "*", 'link', $channel, "select");
-                if ($channelremark['remark'] == null)
-                    continue;
-                if ($channelremark['linkjoin'] == null)
-                    continue;
-                $keyboardchannel['inline_keyboard'][] = [
-                    [
-                        'text' => "{$channelremark['remark']}",
-                        'url' => $channelremark['linkjoin']
-                    ],
-                ];
-            }
+            // Channels N+1
+            $keyboardchannel = getChannelsKeyboard($pdo, $channels);
             $keyboardchannel['inline_keyboard'][] = [['text' => $textbotlang['users']['channel']['confirmjoin'], 'callback_data' => "confirmchannel"]];
             $keyboardchannel = json_encode($keyboardchannel);
             Editmessagetext($from_id, $message_id, $textbotlang['textbot']['channel'], $keyboardchannel);
@@ -463,19 +453,8 @@ if ($user['joinchannel'] != "active") {
             $keyboardchannel = [
                 'inline_keyboard' => [],
             ];
-            foreach ($channels as $channel) {
-                $channelremark = select("channels", "*", 'link', $channel, "select");
-                if ($channelremark['remark'] == null)
-                    continue;
-                if ($channelremark['linkjoin'] == null)
-                    continue;
-                $keyboardchannel['inline_keyboard'][] = [
-                    [
-                        'text' => "{$channelremark['remark']}",
-                        'url' => $channelremark['linkjoin']
-                    ],
-                ];
-            }
+            // Channels N+1
+            $keyboardchannel = getChannelsKeyboard($pdo, $channels);
             $keyboardchannel['inline_keyboard'][] = [['text' => $textbotlang['users']['channel']['confirmjoin'], 'callback_data' => "confirmchannel"]];
             $keyboardchannel = json_encode($keyboardchannel);
             sendmessage($from_id, $textbotlang['textbot']['channel'], $keyboardchannel, 'html');
