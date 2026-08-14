@@ -2377,6 +2377,13 @@ f,n.n2',
 
 📩 | برای ارسال گزارش، پیشنهاد یا درخواست راهنمایی، در <b>گروه میرزا</b> پیام بگذارید:
 <a href="https://t.me/mirzapanelgroup" rel="nofollow" target="_blank">Mirza Group</a>',
+                        'realtimeDashboardReport' => "📊 <b>داشبورد لحظه‌ای مدیر</b>
+
+💰 درآمد امروز: %s
+📅 درآمد این هفته: %s
+🔥 محبوب‌ترین سرویس: %s
+📈 نسبت تبدیل: %s%%",
+
                         'aboutBot' => '💎 | Version Bot: %s
 📌 | Version Mini App: 0.1.1
 
@@ -3771,6 +3778,7 @@ f,n.n2',
                 'baseTimePrice' => '⏳ قیمت پایه زمان',
                 'baseVolumePrice' => '🔋 قیمت پایه حجم',
                 'botReport' => '📬 گزارش ربات',
+                'realtimeDashboard' => '📊 داشبورد لحظه‌ای',
                 'botReports' => '📣 گزارشات ربات',
                 'both' => 'هردو',
                 'broadcastForward' => 'فوروارد همگانی',
