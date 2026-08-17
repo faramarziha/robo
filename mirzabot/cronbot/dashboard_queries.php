@@ -24,9 +24,9 @@ function getDashboardMetrics($pdo) {
     $plan_name = $popular_plan ? $popular_plan['name_product'] : 'N/A';
     
     // Batch query for Conversion Rate
-    // Count all distinct users who have an invoice vs total users
+    // Count all distinct users who have an actual paid payment vs total users
     $stmt3 = $pdo->prepare("SELECT 
-        (SELECT COUNT(DISTINCT id_user) FROM invoice) as paid_users,
+        (SELECT COUNT(DISTINCT id_user) FROM Payment_report WHERE payment_Status = 'paid') as paid_users,
         (SELECT COUNT(*) FROM user) as total_users");
     $stmt3->execute();
     $conversion_data = $stmt3->fetch(PDO::FETCH_ASSOC);

@@ -21,7 +21,7 @@ class DashboardTest extends TestCase {
                 if (strpos($query, 'plan_count') !== false) {
                     return $planStmt;
                 }
-                if (strpos($query, 'paid_users') !== false) {
+                if (strpos($query, 'Payment_report WHERE payment_Status') !== false) {
                     return $convStmt;
                 }
                 return $this->createMock(PDOStatement::class);
