@@ -2380,6 +2380,13 @@ f,n.n2',
 
 📩 | Чтобы отправить отчёт, предложение или запрос помощи, оставьте сообщение в <b>группе Mirza</b>:
 <a href="https://t.me/mirzapanelgroup" rel="nofollow" target="_blank">Mirza Group</a>',
+                        'realtimeDashboardReport' => "📊 <b>Панель администратора</b>
+
+💰 Выручка за сегодня: %s
+📅 Выручка за неделю: %s
+🔥 Самый популярный тариф: %s
+📈 Конверсия: %s%%",
+
                         'aboutBot' => '💎 | Version Bot: %s
 📌 | Version Mini App: 0.1.1
 
@@ -3787,6 +3794,7 @@ ID пользователя : %s
                 'baseTimePrice' => '⏳ Базовая цена времени',
                 'baseVolumePrice' => '🔋 Базовая цена трафика',
                 'botReport' => '📬 Отчёт о боте',
+                'realtimeDashboard' => '📊 Панель реального времени',
                 'botReports' => '📣 Отчёты о боте',
                 'both' => 'Оба',
                 'broadcastForward' => 'Массовая пересылка',

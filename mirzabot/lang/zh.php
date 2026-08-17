@@ -2380,6 +2380,13 @@ f,n.n2',
 
 📩 | 要发送报告、建议或请求指导，请在 <b>Mirza 群组</b>中留言：
 <a href="https://t.me/mirzapanelgroup" rel="nofollow" target="_blank">Mirza Group</a>',
+                        'realtimeDashboardReport' => "📊 <b>实时管理仪表板</b>
+
+💰 今日收入: %s
+📅 本周收入: %s
+🔥 最受欢迎的套餐: %s
+📈 转化率: %s%%",
+
                         'aboutBot' => '💎 | Version Bot: %s
 📌 | Version Mini App: 0.1.1
 
@@ -3787,6 +3794,7 @@ f,n.n2',
                 'baseTimePrice' => '⏳ 时间基础价格',
                 'baseVolumePrice' => '🔋 流量基础价格',
                 'botReport' => '📬 机器人反馈',
+                'realtimeDashboard' => '📊 实时仪表板',
                 'botReports' => '📣 机器人反馈',
                 'both' => '两者',
                 'broadcastForward' => '群发转发',

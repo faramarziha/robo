@@ -2380,6 +2380,13 @@ Current amount: %s',
 
 📩 | To send a report, suggestion, or request for guidance, leave a message in the <b>Mirza group</b>:
 <a href="https://t.me/mirzapanelgroup" rel="nofollow" target="_blank">Mirza Group</a>',
+                        'realtimeDashboardReport' => "📊 <b>Real-time Dashboard</b>
+
+💰 Today's Revenue: %s
+📅 Weekly Revenue: %s
+🔥 Most Popular Plan: %s
+📈 Conversion Rate: %s%%",
+
                         'aboutBot' => '💎 | Version Bot: %s
 📌 | Version Mini App: 0.1.1
 
@@ -3787,6 +3794,7 @@ We hope you had a good experience with the ease and speed of your service. If yo
                 'baseTimePrice' => '⏳ Base time price',
                 'baseVolumePrice' => '🔋 Base volume price',
                 'botReport' => '📬 Bot report',
+                'realtimeDashboard' => '📊 Real-time Dashboard',
                 'botReports' => '📣 Bot reports',
                 'both' => 'Both',
                 'broadcastForward' => 'Broadcast forward',

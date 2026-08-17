@@ -7014,6 +7014,18 @@ if ($datain == "settimecornremove" && $adminrulecheck['rule'] == "administrator"
     $textupdate = $textbotlang['Admin']['report']['botReportIntro'];
     sendmessage($from_id, $textupdate, null, 'HTML');
     step('home', $from_id);
+} elseif ($text == $textbotlang['keyboard']['realtimeDashboard'] && $adminrulecheck['rule'] == "administrator") {
+    require_once __DIR__ . '/cronbot/dashboard_queries.php';
+    $metrics = getDashboardMetrics($pdo);
+    $textupdate = sprintf(
+        $textbotlang['Admin']['report']['realtimeDashboardReport'],
+        $metrics['daily_revenue'],
+        $metrics['weekly_revenue'],
+        $metrics['popular_plan'],
+        $metrics['conversion_rate']
+    );
+    sendmessage($from_id, $textupdate, null, 'HTML');
+    step('home', $from_id);
 } elseif ($text == $textbotlang['keyboard']['panelFeatures']) {
     sendmessage($from_id, $textbotlang['Admin']['managepanel']['selectPanel'], $json_list_marzban_panel, 'HTML');
     step('getlocoption', $from_id);
