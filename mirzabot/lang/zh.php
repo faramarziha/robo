@@ -2,6 +2,19 @@
 
 
 return [
+        'features' => [
+                'dailyStatsBody' => '📊 <b>{date} 销售报告</b>
+
+💰 收入: {revenue} 托曼
+🧾 订单: {orders}
+👥 新用户: {users}
+
+🏆 热门套餐:
+{top}',
+                'panelHealthDown' => '⚠️ 面板 <b>{panel}</b> 无法访问！',
+                'panelHealthBack' => '✅ 面板 <b>{panel}</b> 已重新上线。',
+                'panelHealthCapacity' => '⚠️ 面板 <b>{panel}</b> 容量已达 {percent}%（{active}/{limit} 用户）。',
+        ],
         'bottext' => [
                 'open_button' => '📝 编辑机器人文本',
                 'home_text' => '📝 <b>编辑机器人文本</b>
