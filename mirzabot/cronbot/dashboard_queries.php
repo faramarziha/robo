@@ -15,9 +15,8 @@ function getDashboardMetrics($pdo) {
     // Batch query for Most Popular Plan
     $stmt2 = $pdo->prepare("SELECT 
         name_product, COUNT(*) as plan_count 
-        FROM product p 
-        JOIN invoice i ON p.code_product = i.code_product
-        GROUP BY p.code_product, p.name_product 
+        FROM invoice 
+        GROUP BY name_product 
         ORDER BY plan_count DESC LIMIT 1");
     $stmt2->execute();
     $popular_plan = $stmt2->fetch(PDO::FETCH_ASSOC);

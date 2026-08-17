@@ -18,7 +18,7 @@ class DashboardTest extends TestCase {
                 if (strpos($query, 'daily_revenue') !== false) {
                     return $revStmt;
                 }
-                if (strpos($query, 'plan_count') !== false) {
+                if (strpos($query, 'FROM invoice') !== false && strpos($query, 'plan_count') !== false) {
                     return $planStmt;
                 }
                 if (strpos($query, 'Payment_report WHERE payment_Status') !== false) {
