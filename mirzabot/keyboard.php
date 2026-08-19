@@ -1,4 +1,5 @@
 <?php
+if (!defined('TESTING')) {
 require_once 'config.php';
 $setting = select("setting", "*", null, null, "select");
 $textbotlang = languagechange();
@@ -1420,6 +1421,7 @@ $keyboardlinkapp = json_encode([
     ],
     'resize_keyboard' => true
 ]);
+}
 // $params carries the bound values for $query. Callers used to interpolate
 // panel/agent names straight into the SQL string; the placeholder form is
 // preferred, and the default empty array keeps older callers working.
