@@ -3513,7 +3513,8 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
                     sendmessage($from_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $user['agent'], $backuser), 'HTML');
                 }
             } else {
-                $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all')AND agent= '{$user['agent']}'";
+                $query = "SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent";
+                $params = [':location' => $location, ':agent' => $user['agent']];
                 $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
                 $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
                 if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == $textbotlang['keyboard']['customUsernameRandom']) {
@@ -3528,9 +3529,9 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
                 }
                 $textproduct = $textbotlang['users']['sell']['serviceSelectFirst'];
                 if ($datain == "buy") {
-                    Editmessagetext($from_id, $message_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom));
+                    Editmessagetext($from_id, $message_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $params));
                 } else {
-                    sendmessage($from_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom), 'HTML');
+                    sendmessage($from_id, $textproduct, KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $params), 'HTML');
                 }
             }
         } else {
@@ -3608,7 +3609,8 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
             $marzban_list_get = select("marzban_panel", "*", "name_panel", $location, "select");
             Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($location, $user['agent'], "buybacktow"));
         } else {
-            $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all')AND agent= '{$user['agent']}'";
+            $query = "SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent";
+            $params = [':location' => $location, ':agent' => $user['agent']];
             $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
             if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == $textbotlang['keyboard']['customUsernameRandom']) {
                 $datakeyboard = "prodcutservices_";
@@ -3625,7 +3627,7 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
             } else {
                 $back = "buyback";
             }
-            Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelect'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, $back));
+            Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelect'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, $back, null, "customsellvolume", $params));
         }
     } else {
         $nullproduct = select("product", "*", null, null, "count");
@@ -3645,9 +3647,11 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
     $categorynames = select("category", "remark", "id", $categorynames, "select")['remark'];
     $userdate = json_decode($user['Processing_value'], true);
     if (isset($userdate['monthproduct'])) {
-        $query = "SELECT * FROM product WHERE (Location = '{$userdate['name_panel']}' OR Location = '/all') AND agent= '{$user['agent']}' AND category = '$categorynames' AND Service_time = '{$userdate['monthproduct']}'";
+        $query = "SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent AND category = :category AND Service_time = :service_time";
+        $params = [':location' => $userdate['name_panel'], ':agent' => $user['agent'], ':category' => $categorynames, ':service_time' => $userdate['monthproduct']];
     } else {
-        $query = "SELECT * FROM product WHERE (Location = '{$userdate['name_panel']}' OR Location = '/all') AND agent= '{$user['agent']}' AND category = '$categorynames'";
+        $query = "SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent AND category = :category";
+        $params = [':location' => $userdate['name_panel'], ':agent' => $user['agent'], ':category' => $categorynames];
     }
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
     $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
@@ -3661,7 +3665,7 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
     } else {
         $statuscustom = false;
     }
-    Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom));
+    Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $params));
 } elseif (preg_match('/^productmonth_(\w+)/', $datain, $dataget)) {
     $monthenumber = $dataget[1];
     $userdate = json_decode($user['Processing_value'], true);
@@ -3679,7 +3683,8 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
         }
         Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['selectCategory'], KeyboardCategory($marzban_list_get['name_panel'], $user['agent'], $back));
     } else {
-        $query = "SELECT * FROM product WHERE (Location = '{$userdate['name_panel']}' OR Location = '/all') AND agent= '{$user['agent']}' AND Service_time = '$monthenumber'";
+        $query = "SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent AND Service_time = :service_time";
+        $params = [':location' => $userdate['name_panel'], ':agent' => $user['agent'], ':service_time' => $monthenumber];
         $marzban_list_get = select("marzban_panel", "*", "name_panel", $userdate['name_panel'], "select");
         $statuscustomvolume = json_decode($marzban_list_get['customvolume'], true)[$user['agent']];
         if ($marzban_list_get['MethodUsername'] == $textbotlang['users']['customusername'] || $marzban_list_get['MethodUsername'] == $textbotlang['keyboard']['customUsernameRandom']) {
@@ -3692,7 +3697,7 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
         } else {
             $statuscustom = false;
         }
-        Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom));
+        Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelectFirst'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolume", $params));
     }
 } elseif ($datain == "customsellvolume") {
     $userdate = json_decode($user['Processing_value'], true);
@@ -4333,8 +4338,9 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
     } else {
         $statuscustom = false;
     }
-    $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all')AND agent= '{$user['agent']}'";
-    Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelect'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolumeom"));
+    $query = "SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent";
+    $params = [':location' => $location, ':agent' => $user['agent']];
+    Editmessagetext($from_id, $message_id, $textbotlang['users']['sell']['serviceSelect'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], $datakeyboard, $statuscustom, "backuser", null, "customsellvolumeom", $params));
 } elseif ($datain == "customsellvolumeom") {
     $marzban_list_get = select("marzban_panel", "*", "name_panel", $user['Processing_value'], "select");
     $eextraprice = json_decode($marzban_list_get['pricecustomvolume'], true);
@@ -6555,7 +6561,8 @@ if (preg_match('/extends_(\w+)_(.*)/', $datain, $dataget)) {
     }
     $location = $location['name_panel'];
     update("user", "Processing_value", $location, "id", $from_id);
-    $query = "SELECT * FROM product WHERE (Location = '$location' OR Location = '/all') AND agent= '{$user['agent']}'";
+    $query = "SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent";
+    $params = [':location' => $location, ':agent' => $user['agent']];
     $marzban_list_get = select("marzban_panel", "*", "code_panel", $location, "select");
     if (empty($marzban_list_get)) {
         sendmessage($from_id, $textbotlang['users']['status']['infoUnavailable'], null, 'HTML');
@@ -6573,7 +6580,7 @@ if (preg_match('/extends_(\w+)_(.*)/', $datain, $dataget)) {
     } else {
         $statuscustom = false;
     }
-    Editmessagetext($from_id, $message_id, $textbotlang['users']['extend']['selectservice'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], "serviceextendselects-", false, "backuser", $username));
+    Editmessagetext($from_id, $message_id, $textbotlang['users']['extend']['selectservice'], KeyboardProduct($marzban_list_get['name_panel'], $query, $user['pricediscount'], "serviceextendselects-", false, "backuser", $username, "customsellvolume", $params));
 } elseif (preg_match('/^serviceextendselects-(.*)-(.*)/', $datain, $dataget)) {
     deletemessage($from_id, $message_id);
     $codeproduct = $dataget[1];

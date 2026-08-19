@@ -1,5 +1,6 @@
 <?php
 
+if (!defined('TESTING')) {
 $botinfo = select("botsaz", "*", "bot_token", $ApiToken, "select");
 $userbot = select("user", "*", "id", $botinfo['id_user'], "select");
 $hide_panel = json_decode($botinfo['hide_panel'], true);
@@ -177,14 +178,15 @@ $KeyboardBalance = json_encode([
         [['text' => "🏠 بازگشت به منوی اصلی",  'callback_data' => "backuser"]]
     ]
 ]);
+}
 
-function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $statuscustom = false, $backuser = "backuser", $valuetow = null, $customvolume = "customsellvolume")
+function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $statuscustom = false, $backuser = "backuser", $valuetow = null, $customvolume = "customsellvolume", $params = [])
 {
     global $pdo, $textbotlang;
     $product = ['inline_keyboard' => []];
     $statusshowprice = select("shopSetting", "*", "Namevalue", "statusshowprice", "select")['value'];
     $stmt = $pdo->prepare($query);
-    $stmt->execute();
+    $stmt->execute($params);
     $valuetow = $valuetow != null ? "-$valuetow" : "";
     while ($result = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $productlist = readJsonFileIfExists('product.json');
