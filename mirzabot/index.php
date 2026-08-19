@@ -23,6 +23,7 @@ if (!empty($webhook_secret)) {
 require_once 'botapi.php';
 require_once 'jdf.php';
 require_once 'function.php';
+require_once __DIR__ . '/inc/rate_limit.php';
 require_once __DIR__ . '/cronbot/channel_keyboard.php';
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
@@ -2947,6 +2948,10 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
         if ($user['number'] == "none" && $setting['get_number'] == "onAuthenticationphone")
             return;
         if ($user['limit_usertest'] <= 0 && !in_array($from_id, $admin_ids)) {
+            sendmessage($from_id, $textbotlang['users']['usertest']['limitwarning'], $keyboard_buy, 'html');
+            return;
+        }
+        if (!in_array($from_id, $admin_ids) && !rateLimit($from_id, 'usertest', 1, 3600)) {
             sendmessage($from_id, $textbotlang['users']['usertest']['limitwarning'], $keyboard_buy, 'html');
             return;
         }

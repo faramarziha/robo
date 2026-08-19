@@ -81,6 +81,7 @@ try {
         addFieldToTable($tableName, 'codeInvitation', null);
         addFieldToTable($tableName, 'pricediscount', "0");
         addFieldToTable($tableName, 'hide_mini_app_instruction', '0', "VARCHAR(20)");
+        addFieldToTable($tableName, 'device_id', null, "VARCHAR(128)");
     }
 } catch (PDOException $e) {
     file_put_contents('error_log user', $e->getMessage());
@@ -1285,6 +1286,27 @@ try {
     }
 } catch (Exception $e) {
     file_put_contents('error_log logs_api', $e->getMessage());
+}
+//----------------------- [ Request log (F31) ] --------------------- //
+try {
+    $result = $pdo->query("SHOW TABLES LIKE 'request_log'");
+    $table_exists = ($result->rowCount() > 0);
+
+    if (!$table_exists) {
+        $result = $pdo->query("CREATE TABLE request_log (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        id_user varchar(200) NULL,
+        action varchar(100) NOT NULL,
+        ip varchar(45) NULL,
+        at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_user_action (id_user, action, at))
+        ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci");
+        if (!$result) {
+            echo "table request_log" . implode(' ', $pdo->errorInfo());
+        }
+    }
+} catch (Exception $e) {
+    file_put_contents('error_log request_log', $e->getMessage());
 }
 //----------------------- [ Category ] --------------------- //
 try {
