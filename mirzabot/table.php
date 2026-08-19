@@ -1287,6 +1287,29 @@ try {
 } catch (Exception $e) {
     file_put_contents('error_log logs_api', $e->getMessage());
 }
+//----------------------- [ Gift codes (F22) ] --------------------- //
+try {
+    $result = $pdo->query("SHOW TABLES LIKE 'gift_codes'");
+    $table_exists = ($result->rowCount() > 0);
+
+    if (!$table_exists) {
+        $result = $pdo->query("CREATE TABLE gift_codes (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(32) NOT NULL UNIQUE,
+        value INT NOT NULL,
+        status ENUM('active','used','revoked') NOT NULL DEFAULT 'active',
+        created_by VARCHAR(200) NULL,
+        used_by VARCHAR(200) NULL,
+        used_at DATETIME NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP)
+        ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci");
+        if (!$result) {
+            echo "table gift_codes" . implode(' ', $pdo->errorInfo());
+        }
+    }
+} catch (Exception $e) {
+    file_put_contents('error_log gift_codes', $e->getMessage());
+}
 //----------------------- [ Request log (F31) ] --------------------- //
 try {
     $result = $pdo->query("SHOW TABLES LIKE 'request_log'");

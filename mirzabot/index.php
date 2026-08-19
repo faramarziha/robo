@@ -26,6 +26,7 @@ require_once 'function.php';
 require_once __DIR__ . '/inc/rate_limit.php';
 require_once __DIR__ . '/cronbot/channel_keyboard.php';
 require_once 'keyboard.php';
+require_once __DIR__ . '/inc/gift_codes.php';
 require_once 'vendor/autoload.php';
 require_once 'panels.php';
 $textbotlang = languagechange();
@@ -473,6 +474,13 @@ if ($text == "/start" || $datain == "start" || $text == "start") {
     return;
 } elseif ($text == "version") {
     sendmessage($from_id, $version, null, 'html');
+} elseif (preg_match('/^\/(gift|redeem)\s+(\S+)/', $text, $giftMatch)) {
+    $redeemed = redeemGiftCode($giftMatch[2], $from_id);
+    if ($redeemed === false) {
+        sendmessage($from_id, $textbotlang['users']['gift']['invalid'] ?? "❌ کد گیفت نامعتبر است یا قبلاً استفاده شده است.", null, 'HTML');
+    } else {
+        sendmessage($from_id, sprintf($textbotlang['users']['gift']['redeemed'] ?? "🎁 کد گیفت با موفقیت فعال شد.\n💰 مبلغ %s تومان به موجودی شما اضافه شد.", number_format($redeemed)), null, 'HTML');
+    }
 } elseif ($text == $textbotlang['users']['backbtn'] || $datain == "backuser") {
     if ($datain == "backuser")
         deletemessage($from_id, $message_id);
