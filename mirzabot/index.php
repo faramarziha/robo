@@ -24,6 +24,7 @@ require_once 'botapi.php';
 require_once 'jdf.php';
 require_once 'function.php';
 require_once __DIR__ . '/inc/rate_limit.php';
+require_once __DIR__ . '/inc/faq.php';
 require_once __DIR__ . '/cronbot/channel_keyboard.php';
 require_once 'keyboard.php';
 require_once 'vendor/autoload.php';
@@ -6749,6 +6750,17 @@ if (preg_match('/extends_(\w+)_(.*)/', $datain, $dataget)) {
         ]
     ]);
     Editmessagetext($from_id, $message_id, $textbotlang['language']['setSuccess'], $keyboard_back);
+}
+} elseif ($datain == '' && ($user['step'] == 'home' || $user['step'] == 'none') && trim($text) != '' && !in_array($from_id, $admin_ids)) {
+    $faqAnswer = matchFaq($text, $user['lang'] ?? 'fa');
+    if ($faqAnswer !== null) {
+        $faqKeyboard = json_encode([
+            'inline_keyboard' => [
+                [['text' => $textbotlang['textbot']['support'], 'callback_data' => 'supportbtns']],
+            ],
+        ]);
+        sendmessage($from_id, $faqAnswer, $faqKeyboard, 'HTML');
+    }
 }
 if (in_array($from_id, $admin_ids))
     require_once 'admin.php';

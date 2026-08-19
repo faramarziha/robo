@@ -1325,6 +1325,27 @@ try {
 } catch (Exception $e) {
     file_put_contents('error_log', $e->getMessage());
 }
+//----------------------- [ FAQ items (F08) ] --------------------- //
+try {
+    $result = $pdo->query("SHOW TABLES LIKE 'faq_items'");
+    $table_exists = ($result->rowCount() > 0);
+
+    if (!$table_exists) {
+        $result = $pdo->query("CREATE TABLE faq_items (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        keyword VARCHAR(100) NOT NULL,
+        lang VARCHAR(5) NOT NULL DEFAULT 'fa',
+        answer TEXT NOT NULL,
+        sort INT NOT NULL DEFAULT 0,
+        KEY idx_lang_keyword (lang, keyword))
+        ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci");
+        if (!$result) {
+            echo "table faq_items" . implode(' ', $pdo->errorInfo());
+        }
+    }
+} catch (Exception $e) {
+    file_put_contents('error_log faq_items', $e->getMessage());
+}
 //----------------------- [ Admin audit log (F34) ] --------------------- //
 try {
     $result = $pdo->query("SHOW TABLES LIKE 'admin_logs'");
