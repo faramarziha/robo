@@ -1303,6 +1303,28 @@ try {
 } catch (Exception $e) {
     file_put_contents('error_log', $e->getMessage());
 }
+//----------------------- [ Admin audit log (F34) ] --------------------- //
+try {
+    $result = $pdo->query("SHOW TABLES LIKE 'admin_logs'");
+    $table_exists = ($result->rowCount() > 0);
+
+    if (!$table_exists) {
+        $result = $pdo->query("CREATE TABLE admin_logs (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        admin_id varchar(200) NULL,
+        action varchar(200) NOT NULL,
+        target TEXT NULL,
+        ip varchar(45) NULL,
+        at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_admin_at (admin_id, at))
+        ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci");
+        if (!$result) {
+            echo "table admin_logs" . implode(' ', $pdo->errorInfo());
+        }
+    }
+} catch (Exception $e) {
+    file_put_contents('error_log admin_logs', $e->getMessage());
+}
 try {
     $result = $pdo->query("SHOW TABLES LIKE 'reagent_report'");
     $table_exists = ($result->rowCount() > 0);

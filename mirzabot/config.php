@@ -19,6 +19,7 @@ try {
     error_log("Database connection failed: " . $e->getMessage());
     throw new Exception("error: database connection failed");
 }
+require_once __DIR__ . '/inc/audit_log.php';
 $APIKEY = '{API_KEY}';
 $adminnumber = '{admin_number}';
 $domainhosts = '{domain_name}';
