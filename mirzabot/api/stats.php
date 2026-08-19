@@ -1,19 +1,21 @@
 <?php
 
-require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../function.php';
-require_once __DIR__ . '/utils.php';
-$textbotlang = languagechange();
-header('Content-Type: application/json');
-date_default_timezone_set('Asia/Tehran');
-ini_set('default_charset', 'UTF-8');
-ini_set('error_log', 'error_log');
+if (!defined('TESTING')) {
+    require_once __DIR__ . '/../config.php';
+    require_once __DIR__ . '/../function.php';
+    require_once __DIR__ . '/utils.php';
+    $textbotlang = languagechange();
+    header('Content-Type: application/json');
+    date_default_timezone_set('Asia/Tehran');
+    ini_set('default_charset', 'UTF-8');
+    ini_set('error_log', 'error_log');
 
-$headers = getallheaders();
-requireApiTokenOrAdminSession($headers);
-$data = normalizeApiInputData();
-$action = isset($data['actions']) && is_scalar($data['actions']) ? (string) $data['actions'] : '';
-$method = $_SERVER['REQUEST_METHOD'];
+    $headers = getallheaders();
+    requireApiTokenOrAdminSession($headers);
+    $data = normalizeApiInputData();
+    $action = isset($data['actions']) && is_scalar($data['actions']) ? (string) $data['actions'] : '';
+    $method = $_SERVER['REQUEST_METHOD'];
+}
 
 // F11 — Admin statistics for the real-time dashboard.
 // actions:
@@ -108,13 +110,15 @@ function stats_recent(array $data, string $method): void
     }
 }
 
-switch ($action) {
-    case 'summary':
-        stats_summary($data, $method);
-        break;
-    case 'recent':
-        stats_recent($data, $method);
-        break;
-    default:
-        sendJsonResponse(false, "action invalid", []);
+if (!defined('TESTING')) {
+    switch ($action) {
+        case 'summary':
+            stats_summary($data, $method);
+            break;
+        case 'recent':
+            stats_recent($data, $method);
+            break;
+        default:
+            sendJsonResponse(false, "action invalid", []);
+    }
 }
