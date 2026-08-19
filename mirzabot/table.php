@@ -1287,23 +1287,6 @@ try {
 } catch (Exception $e) {
     file_put_contents('error_log logs_api', $e->getMessage());
 }
-//----------------------- [ Category ] --------------------- //
-try {
-    $result = $pdo->query("SHOW TABLES LIKE 'category'");
-    $table_exists = ($result->rowCount() > 0);
-
-    if (!$table_exists) {
-        $result = $pdo->query("CREATE TABLE category (
-        id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        remark varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin  NOT NULL)
-        ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_bin");
-        if (!$result) {
-            echo "table category" . implode(' ', $pdo->errorInfo());
-        }
-    }
-} catch (Exception $e) {
-    file_put_contents('error_log', $e->getMessage());
-}
 //----------------------- [ Request log (F31) ] --------------------- //
 try {
     $result = $pdo->query("SHOW TABLES LIKE 'request_log'");
@@ -1324,6 +1307,23 @@ try {
     }
 } catch (Exception $e) {
     file_put_contents('error_log request_log', $e->getMessage());
+}
+//----------------------- [ Category ] --------------------- //
+try {
+    $result = $pdo->query("SHOW TABLES LIKE 'category'");
+    $table_exists = ($result->rowCount() > 0);
+
+    if (!$table_exists) {
+        $result = $pdo->query("CREATE TABLE category (
+        id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        remark varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin  NOT NULL)
+        ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_bin");
+        if (!$result) {
+            echo "table category" . implode(' ', $pdo->errorInfo());
+        }
+    }
+} catch (Exception $e) {
+    file_put_contents('error_log', $e->getMessage());
 }
 try {
     $result = $pdo->query("SHOW TABLES LIKE 'reagent_report'");
