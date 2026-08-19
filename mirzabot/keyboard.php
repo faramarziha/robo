@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/inc/flash_deals.php';
 if (!defined('TESTING')) {
 require_once 'config.php';
 $setting = select("setting", "*", null, null, "select");
@@ -1449,6 +1450,11 @@ function KeyboardProduct($location, $query, $pricediscount, $datakeyboard, $stat
             continue;
         if (intval($pricediscount) != 0) {
             $resultper = ($result['price_product'] * $pricediscount) / 100;
+            $result['price_product'] = $result['price_product'] - $resultper;
+        }
+        $flashPct = flashDiscountFor($result['code_product']);
+        if ($flashPct > 0) {
+            $resultper = ($result['price_product'] * $flashPct) / 100;
             $result['price_product'] = $result['price_product'] - $resultper;
         }
         $namekeyboard = $result['name_product'] . " - " . number_format($result['price_product']) . $textbotlang['common']['labels']['toman'];

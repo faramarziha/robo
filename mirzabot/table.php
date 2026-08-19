@@ -884,6 +884,28 @@ try {
     file_put_contents('error_log', $e->getMessage());
 }
 //-----------------------------------------------------------------
+//----------------------- [ Flash deals (F24) ] --------------------- //
+try {
+    $result = $pdo->query("SHOW TABLES LIKE 'flash_deals'");
+    $table_exists = ($result->rowCount() > 0);
+
+    if (!$table_exists) {
+        $result = $pdo->query("CREATE TABLE flash_deals (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        product_code varchar(200) NOT NULL,
+        discount_pct INT NOT NULL,
+        starts_at DATETIME NOT NULL,
+        ends_at DATETIME NOT NULL,
+        status varchar(20) NOT NULL DEFAULT 'scheduled',
+        KEY idx_product_time (product_code, starts_at, ends_at))
+        ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci");
+        if (!$result) {
+            echo "table flash_deals" . implode(' ', $pdo->errorInfo());
+        }
+    }
+} catch (Exception $e) {
+    file_put_contents('error_log flash_deals', $e->getMessage());
+}
 try {
     $result = $pdo->query("SHOW TABLES LIKE 'affiliates'");
     $table_exists = ($result->rowCount() > 0);

@@ -5,6 +5,7 @@ ini_set('default_charset', 'UTF-8');
 ini_set('error_log', 'error_log');
 ini_set('memory_limit', '-1');
 require_once 'config.php';
+require_once __DIR__ . '/inc/flash_deals.php';
 // Only Telegram may post here. setWebhook registers $webhook_secret, and
 // Telegram then stamps every genuine delivery with it in this header. Without
 // the check, anyone who knows the domain can POST a hand-written update and
@@ -3835,6 +3836,11 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
         $resultper = ($info_product['price_product'] * $user['pricediscount']) / 100;
         $info_product['price_product'] = $info_product['price_product'] - $resultper;
     }
+    $flashPct = flashDiscountFor($info_product['code_product']);
+    if ($flashPct > 0) {
+        $resultper = ($info_product['price_product'] * $flashPct) / 100;
+        $info_product['price_product'] = $info_product['price_product'] - $resultper;
+    }
     $randomString = bin2hex(random_bytes(2));
     $text = strtolower($text);
     $username_ac = generateUsername($from_id, $marzban_list_get['MethodUsername'], $username, $randomString, $text, $marzban_list_get['namecustom'], $user['namecustom']);
@@ -3943,6 +3949,11 @@ if ($user['step'] == "createusertest" || preg_match('/locationtest_(.*)/', $data
         $result = ($priceproduct * $user['pricediscount']) / 100;
         $priceproduct = $priceproduct - $result;
         sendmessage($from_id, sprintf($textbotlang['users']['Discount']['discountapplied'], $user['pricediscount']), null, 'HTML');
+    }
+    $flashPct = flashDiscountFor($info_product['code_product']);
+    if ($flashPct > 0) {
+        $result = ($priceproduct * $flashPct) / 100;
+        $priceproduct = $priceproduct - $result;
     }
     $notifctions = json_encode(array(
         'volume' => false,
