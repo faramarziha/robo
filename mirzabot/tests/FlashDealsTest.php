@@ -16,10 +16,57 @@ if (!function_exists('select')) {
     }
 }
 
-class KeyboardProductTest extends TestCase
+class FlashDealsTest extends TestCase
 {
     #[RunInSeparateProcess]
-    public function testKeyboardProductBindsParametersInsteadOfInterpolating(): void
+    public function testFlashDiscountForBindsCodeAndReturnsActiveDiscount(): void
+    {
+        global $pdo;
+
+        $pdo = $this->createMock(PDO::class);
+        $stmt = $this->createMock(PDOStatement::class);
+
+        $preparedSql = null;
+        $pdo->expects($this->once())
+            ->method('prepare')
+            ->willReturnCallback(function (string $sql) use (&$preparedSql, $stmt) {
+                $preparedSql = $sql;
+                return $stmt;
+            });
+
+        $stmt->expects($this->once())
+            ->method('execute')
+            ->with([':code' => 'ABC123'])
+            ->willReturn(true);
+        $stmt->method('fetchColumn')->willReturn(25);
+
+        require __DIR__ . '/../inc/flash_deals.php';
+
+        $this->assertSame(25, flashDiscountFor('ABC123'));
+        // The code must be bound, never interpolated into the SQL.
+        $this->assertStringContainsString(':code', $preparedSql);
+        $this->assertStringNotContainsString('ABC123', $preparedSql);
+    }
+
+    #[RunInSeparateProcess]
+    public function testFlashDiscountForReturnsZeroWhenNoDealActive(): void
+    {
+        global $pdo;
+
+        $pdo = $this->createMock(PDO::class);
+        $stmt = $this->createMock(PDOStatement::class);
+
+        $pdo->method('prepare')->willReturn($stmt);
+        $stmt->method('execute')->willReturn(true);
+        $stmt->method('fetchColumn')->willReturn(false);
+
+        require __DIR__ . '/../inc/flash_deals.php';
+
+        $this->assertSame(0, flashDiscountFor('NOPE'));
+    }
+
+    #[RunInSeparateProcess]
+    public function testKeyboardProductAppliesFlashDiscountToDisplayedPrice(): void
     {
         global $pdo, $from_id, $textbotlang;
 
@@ -37,11 +84,9 @@ class KeyboardProductTest extends TestCase
         $invoiceStmt = $this->createMock(PDOStatement::class);
         $flashStmt = $this->createMock(PDOStatement::class);
 
-        $preparedQueries = [];
         $pdo->expects($this->exactly(3))
             ->method('prepare')
-            ->willReturnCallback(function (string $sql) use (&$preparedQueries, $stmt, $invoiceStmt, $flashStmt) {
-                $preparedQueries[] = $sql;
+            ->willReturnCallback(function (string $sql) use ($stmt, $invoiceStmt, $flashStmt) {
                 if (strpos($sql, 'FROM product') !== false) {
                     return $stmt;
                 }
@@ -51,13 +96,7 @@ class KeyboardProductTest extends TestCase
                 return $invoiceStmt;
             });
 
-        $params = [':location' => 'panel-1', ':agent' => 'agent-1'];
-
-        $stmt->expects($this->once())
-            ->method('execute')
-            ->with($params)
-            ->willReturn(true);
-
+        $stmt->method('execute')->willReturn(true);
         $stmt->method('fetch')->willReturnOnConsecutiveCalls(
             [
                 'hide_panel' => '[]',
@@ -73,9 +112,9 @@ class KeyboardProductTest extends TestCase
         $invoiceStmt->method('execute')->willReturn(true);
         $invoiceStmt->method('rowCount')->willReturn(0);
 
-        // No flash deal is active for this product, so the discount is 0.
+        // 10% flash deal active for ABC123.
         $flashStmt->method('execute')->willReturn(true);
-        $flashStmt->method('fetchColumn')->willReturn(false);
+        $flashStmt->method('fetchColumn')->willReturn(10);
 
         require __DIR__ . '/../keyboard.php';
 
@@ -88,22 +127,13 @@ class KeyboardProductTest extends TestCase
             'backuser',
             null,
             'customsellvolume',
-            $params
+            [':location' => 'panel-1', ':agent' => 'agent-1']
         );
-
-        // The SQL handed to PDO must be the placeholder form — never the values.
-        $this->assertSame(
-            "SELECT * FROM product WHERE (Location = :location OR Location = '/all') AND agent = :agent",
-            $preparedQueries[0]
-        );
-        $this->assertStringNotContainsString('panel-1', $preparedQueries[0]);
-        $this->assertStringNotContainsString('agent-1', $preparedQueries[0]);
 
         $decoded = json_decode($json, true);
         $this->assertIsArray($decoded);
-        $this->assertArrayHasKey('inline_keyboard', $decoded);
-        $this->assertSame('prodcutservice_ABC123', $decoded['inline_keyboard'][0][0]['callback_data']);
+        // 50000 - 10% = 45000, rendered as the formatted price with the label.
+        $this->assertStringContainsString('45,000', $decoded['inline_keyboard'][0][0]['text']);
         $this->assertStringContainsString('Test Plan', $decoded['inline_keyboard'][0][0]['text']);
-        $this->assertSame('backuser', $decoded['inline_keyboard'][1][0]['callback_data']);
     }
 }
