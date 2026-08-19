@@ -2,6 +2,19 @@
 
 
 return [
+        'features' => [
+                'dailyStatsBody' => '📊 <b>Отчет о продажах — {date}</b>
+
+💰 Доход: {revenue} томан
+🧾 Заказы: {orders}
+👥 Новых пользователей: {users}
+
+🏆 Популярные планы:
+{top}',
+                'panelHealthDown' => '⚠️ Панель <b>{panel}</b> недоступна!',
+                'panelHealthBack' => '✅ Панель <b>{panel}</b> снова в сети.',
+                'panelHealthCapacity' => '⚠️ Панель <b>{panel}</b> заполнена на {percent}% ({active}/{limit} пользователей).',
+        ],
         'bottext' => [
                 'open_button' => '📝 Редактировать тексты бота',
                 'home_text' => '📝 <b>Редактировать тексты бота</b>

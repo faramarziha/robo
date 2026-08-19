@@ -2,6 +2,19 @@
 
 
 return [
+        'features' => [
+                'dailyStatsBody' => '📊 <b>Daily sales report — {date}</b>
+
+💰 Revenue: {revenue} Toman
+🧾 Orders: {orders}
+👥 New users: {users}
+
+🏆 Top plans:
+{top}',
+                'panelHealthDown' => '⚠️ Panel <b>{panel}</b> is unreachable!',
+                'panelHealthBack' => '✅ Panel <b>{panel}</b> is back online.',
+                'panelHealthCapacity' => '⚠️ Panel <b>{panel}</b> reached {percent}% capacity ({active}/{limit} users).',
+        ],
         'bottext' => [
                 'open_button' => '📝 Edit bot texts',
                 'home_text' => '📝 <b>Edit bot texts</b>

@@ -2,12 +2,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #  Mirza Bot — variable-driven, resumable installer
 #
-#  Contract: ../implementation_plan.md
-#  Regression checklist: ../installer_inventory_checklist.md
-#
-#  WORK IN PROGRESS. This file replaces install.sh once every phase is ported
-#  and the regression checklist is fully ticked. Until then install.sh remains
-#  the shipped installer and the reference inventory.
+#  This is the shipped installer. install.old.sh in the same directory holds
+#  the original pre-rewrite installer as a fallback while this rewrite is
+#  validated.
 # ═══════════════════════════════════════════════════════════════════════════
 
 if [[ $EUID -ne 0 ]]; then

@@ -5,18 +5,22 @@ if (isset($_SERVER['SCRIPT_FILENAME']) && realpath($_SERVER['SCRIPT_FILENAME']) 
     exit;
 }
 
-require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../function.php';
+if (!defined('TESTING')) {
+    require_once __DIR__ . '/../config.php';
+    require_once __DIR__ . '/../function.php';
+}
 
-function sendJsonResponse($status, $message, $data = [], $httpCode = 200)
-{
-    http_response_code($httpCode);
-    echo json_encode([
-        'status' => $status,
-        'msg' => $message,
-        'obj' => $data
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
+if (!function_exists('sendJsonResponse')) {
+    function sendJsonResponse($status, $message, $data = [], $httpCode = 200)
+    {
+        http_response_code($httpCode);
+        echo json_encode([
+            'status' => $status,
+            'msg' => $message,
+            'obj' => $data
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }
 
 function sendReport($text, $groupid, $topic_id, $reply_markup = null)
@@ -91,24 +95,26 @@ function requireApiToken($headers)
     }
 }
 
-function hasAdminSession()
-{
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
+if (!function_exists('hasAdminSession')) {
+    function hasAdminSession()
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
 
-    if (empty($_SESSION['admin_user'])) {
-        return false;
-    }
+        if (empty($_SESSION['admin_user'])) {
+            return false;
+        }
 
-    try {
-        $admin = select("admin", "id_admin", "username", $_SESSION['admin_user'], "select");
-    } catch (Exception $e) {
-        error_log("Admin session check failed: " . $e->getMessage());
-        return false;
-    }
+        try {
+            $admin = select("admin", "id_admin", "username", $_SESSION['admin_user'], "select");
+        } catch (Exception $e) {
+            error_log("Admin session check failed: " . $e->getMessage());
+            return false;
+        }
 
-    return is_array($admin) && isset($admin['id_admin']);
+        return is_array($admin) && isset($admin['id_admin']);
+    }
 }
 
 function requireApiTokenOrAdminSession($headers)

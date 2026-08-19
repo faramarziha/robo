@@ -2,6 +2,19 @@
 
 
 return [
+        'features' => [
+                'dailyStatsBody' => '📊 <b>گزارش فروش روزانه {date}</b>
+
+💰 درآمد: {revenue} تومان
+🧾 سفارش‌ها: {orders}
+👥 کاربر جدید: {users}
+
+🏆 محبوب‌ترین پلن‌ها:
+{top}',
+                'panelHealthDown' => '⚠️ پنل <b>{panel}</b> در دسترس نیست!',
+                'panelHealthBack' => '✅ پنل <b>{panel}</b> دوباره آنلاین شد.',
+                'panelHealthCapacity' => '⚠️ پنل <b>{panel}</b> به {percent}٪ ظرفیت رسیده ({active}/{limit} کاربر).',
+        ],
         'bottext' => [
                 'open_button' => '📝 ویرایش متن‌های ربات',
                 'home_text' => '📝 <b>ویرایش متن‌های ربات</b>
